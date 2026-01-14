@@ -88,6 +88,7 @@ gradle-app.setting
 *~.nib
 local.properties
 .loadpath
+*.lst
 
 # ----------------------------------------------------------------------
 # NetBeans
@@ -126,3 +127,5 @@ Thumbs.db
 desktop.ini
 *.ini
 *.db
+/angular-im-frontend-cicd-pipeline/cdk.out/
+/cdk.out/
