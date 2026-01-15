@@ -1,14 +1,15 @@
 package com.sakai.cloud.infra;
 
-import software.amazon.awscdk.Duration;
-import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.Tags;
+import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.*;
+import software.amazon.awscdk.services.codepipeline.CfnWebhook;
+import software.amazon.awscdk.services.codepipeline.CfnWebhookProps;
 import software.amazon.awscdk.services.iam.AnyPrincipal;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
 import software.amazon.awscdk.services.iam.PolicyStatementProps;
+import software.amazon.awscdk.services.logs.LogGroup;
+import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.BucketEncryption;
@@ -56,9 +57,15 @@ public class ImFrontendCICDStack extends Stack {
                 .build());
 
         // Logging options
+        LogGroup logGroup = LogGroup.Builder.create(this, "ImFrontendCICDStackLogGroup")
+                .retention(RetentionDays.ONE_WEEK)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .build();
+
         LoggingOptions loggingOptions = LoggingOptions.builder()
                 .cloudWatch(CloudWatchLoggingOptions.builder()
                         .enabled(true)
+                        .logGroup(logGroup)
                         .build())
                 .build();
 
@@ -115,4 +122,6 @@ public class ImFrontendCICDStack extends Stack {
         bucket.addToResourcePolicy(s3PolicyStatement);
         return bucket;
     }
+
+    private void proofConcepts() {}
 }
