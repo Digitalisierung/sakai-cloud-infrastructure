@@ -2,6 +2,7 @@ package com.sakai.cloud.infra;
 
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.CfnProject;
+import software.amazon.awscdk.services.codepipeline.CfnPipeline;
 import software.amazon.awscdk.services.iam.*;
 import software.amazon.awscdk.services.s3.BlockPublicAccess;
 import software.amazon.awscdk.services.s3.Bucket;
@@ -10,6 +11,7 @@ import software.amazon.awscdk.services.s3.BucketProps;
 import software.constructs.Construct;
 
 import java.util.List;
+import java.util.Map;
 
 public class ImFrontendCICDStackL1 extends Stack {
     private static String connectionId;
@@ -18,11 +20,13 @@ public class ImFrontendCICDStackL1 extends Stack {
     public ImFrontendCICDStackL1(Construct scope, String id, StackProps props) {
         super(scope, id, props);
 
-        connectionId = "3baf9c01-87e6-408b-82af-6f37b63edecc";
+        // arn:aws:codeconnections:eu-central-1:251183416711:connection/0eb84fa4-1c3f-4b0b-8434-a3f94184c621
+        connectionId = "0eb84fa4-1c3f-4b0b-8434-a3f94184c621";
         connectionArn = "arn:aws:codeconnections:" + getRegion() + ":" + getAccount() + ":connection/" + connectionId;
 
         Bucket bucket = createS3Bucket();
-        CfnProject cfnProject = proofConcepts(bucket);
+        CfnProject cfnProject = createCodeBuildProject(bucket);
+        createPipeline(cfnProject, bucket);
     }
 
     private Bucket createS3Bucket() {
@@ -50,30 +54,11 @@ public class ImFrontendCICDStackL1 extends Stack {
         return bucket;
     }
 
-    private CfnProject proofConcepts(Bucket bucket) {
-        List<CfnProject.WebhookFilterProperty> groups = List.of(
-                CfnProject.WebhookFilterProperty.builder()
-                        .type("EVENT")
-                        .pattern("PUSH")
-                        .build(),
-                CfnProject.WebhookFilterProperty.builder()
-                        .type("HEAD_REF")
-                        .pattern("refs/heads/develop")
-                        .build());
+    private CfnProject createCodeBuildProject(Bucket bucket) {
 
         CfnProject.SourceProperty codeBuildSourceProp = CfnProject.SourceProperty.builder()
                 .buildSpec("buildspec.yaml")
-                .gitCloneDepth(1)
-                .gitSubmodulesConfig(CfnProject.GitSubmodulesConfigProperty.builder()
-                        .fetchSubmodules(false)
-                        .build())
-                .type("GITHUB")
-                .location("https://github.com/Digitalisierung/im-frontend")
-                .reportBuildStatus(true)
-                .auth(CfnProject.SourceAuthProperty.builder()
-                        .type("CODECONNECTIONS")
-                        .resource(connectionArn)
-                        .build())
+                .type("CODEPIPELINE")
                 .build();
 
         CfnProject.CloudWatchLogsConfigProperty cloudWatchLogsConfigProperty = CfnProject.CloudWatchLogsConfigProperty.builder()
@@ -104,11 +89,10 @@ public class ImFrontendCICDStackL1 extends Stack {
                 .effect(Effect.ALLOW)
                 .build());
 
-        // Berechtigung für CodeConnection (WICHTIG für GitHub Zugriff)
+        // Berechtigung für CodeConnection
         codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
-                .actions(List.of("codestar-connections:GetConnectionToken", "codestar-connections:GetConnection", "codestar-connections:UseConnection", "codeconnections:GetConnectionToken", "codeconnections:GetConnection", "codeconnections:UseConnection"))
+                .actions(List.of("codeconnections:UseConnection"))
                 .resources(List.of(connectionArn))
-                .effect(Effect.ALLOW)
                 .build());
 
         // Berechtigungen für CodeBuild Reports (Testberichte und Code Coverage)
@@ -122,9 +106,9 @@ public class ImFrontendCICDStackL1 extends Stack {
         bucket.grantReadWrite(codeBuildRole);
 
         // CodeBuild Project
-        CfnProject cfnCodeBuildProject = CfnProject.Builder.create(this, "ImFrontendCICDBuuldProjectL1")
+        CfnProject cfnCodeBuildProject = CfnProject.Builder.create(this, "ImFrontendCICDBuildProjectL1")
                 .artifacts(CfnProject.ArtifactsProperty.builder()
-                        .type("NO_ARTIFACTS")
+                        .type("CODEPIPELINE")
                         .build())
                 .serviceRole(codeBuildRole.getRoleArn())
                 .badgeEnabled(false)
@@ -151,14 +135,98 @@ public class ImFrontendCICDStackL1 extends Stack {
                 .timeoutInMinutes(20)
                 .autoRetryLimit(0)
                 .source(codeBuildSourceProp)
-                .sourceVersion("develop")
-                .triggers(CfnProject.ProjectTriggersProperty.builder()
-                        .webhook(true)
-                        .filterGroups(List.of(groups))
-                        .build())
                 .build();
 
         return cfnCodeBuildProject;
+    }
 
+    private void createPipeline(CfnProject codeBuildProject, Bucket bucket) {
+        // Pipeline Artifact Bucket
+        Bucket artifactBucket = new Bucket(this, "PipelineArtifactBucket", BucketProps.builder()
+                .encryption(BucketEncryption.S3_MANAGED)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .autoDeleteObjects(true)
+                .build());
+
+        // Pipeline Role
+        Role pipelineRole = new Role(this, "PipelineRole", RoleProps.builder()
+                .assumedBy(new ServicePrincipal("codepipeline.amazonaws.com"))
+                .build());
+
+        artifactBucket.grantReadWrite(pipelineRole);
+        bucket.grantReadWrite(pipelineRole);
+
+        pipelineRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of(
+                        "codeconnections:UseConnection",
+                        "codestar-connections:UseConnection"
+                ))
+                .resources(List.of(connectionArn))
+                .build());
+
+        pipelineRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of(
+                        "codebuild:BatchGetBuilds",
+                        "codebuild:StartBuild"))
+                .resources(List.of(codeBuildProject.getAttrArn()))
+                .build());
+
+        // Pipeline
+        CfnPipeline.Builder.create(this, "ImFrontendPipeline")
+                .roleArn(pipelineRole.getRoleArn())
+                .artifactStore(CfnPipeline.ArtifactStoreProperty.builder()
+                        .type("S3")
+                        .location(artifactBucket.getBucketName())
+                        .build())
+                .stages(List.of(
+                        CfnPipeline.StageDeclarationProperty.builder()
+                                .name("Source")
+                                .actions(List.of(
+                                        CfnPipeline.ActionDeclarationProperty.builder()
+                                                .name("GitHub_Source")
+                                                .actionTypeId(CfnPipeline.ActionTypeIdProperty.builder()
+                                                        .category("Source")
+                                                        .owner("AWS")
+                                                        .provider("CodeStarSourceConnection")
+                                                        .version("1")
+                                                        .build())
+                                                .configuration(Map.of(
+                                                        "ConnectionArn", connectionArn,
+                                                        "FullRepositoryId", "Digitalisierung/im-frontend",
+                                                        "BranchName", "develop",
+                                                        "OutputArtifactFormat", "CODE_ZIP"
+                                                ))
+                                                .outputArtifacts(List.of(
+                                                        CfnPipeline.OutputArtifactProperty.builder()
+                                                                .name("SourceOutput")
+                                                                .build()
+                                                ))
+                                                .build()
+                                ))
+                                .build(),
+                        CfnPipeline.StageDeclarationProperty.builder()
+                                .name("Build")
+                                .actions(List.of(
+                                        CfnPipeline.ActionDeclarationProperty.builder()
+                                                .name("CodeBuild")
+                                                .actionTypeId(CfnPipeline.ActionTypeIdProperty.builder()
+                                                        .category("Build")
+                                                        .owner("AWS")
+                                                        .provider("CodeBuild")
+                                                        .version("1")
+                                                        .build())
+                                                .configuration(Map.of(
+                                                        "ProjectName", codeBuildProject.getRef()
+                                                ))
+                                                .inputArtifacts(List.of(
+                                                        CfnPipeline.InputArtifactProperty.builder()
+                                                                .name("SourceOutput")
+                                                                .build()
+                                                ))
+                                                .build()
+                                ))
+                                .build()
+                ))
+                .build();
     }
 }

@@ -11,14 +11,14 @@ public class Main {
 
         Environment env = Environment.builder()
                 .region("eu-central-1")
-                .account("315735600242")
+                .account("251183416711")
                 .build();
 
         StackProps stackProps = StackProps.builder()
                 .env(env)
                 .build();
 
-        new ImFrontendCICDStackL1(app, "ImFrontendCICDStackL1", stackProps);
+        new com.sakai.cloud.infra.ImFrontendCICDStackL1(app, "ImFrontendCICDStackL1", stackProps);
         app.synth();
     }
 }
