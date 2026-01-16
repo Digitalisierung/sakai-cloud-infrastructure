@@ -25,8 +25,13 @@ public class ImFrontendCICDStackL1 extends Stack {
         connectionArn = "arn:aws:codeconnections:" + getRegion() + ":" + getAccount() + ":connection/" + connectionId;
 
         Bucket bucket = createS3Bucket();
-        CfnProject cfnProject = createCodeBuildProject(bucket);
-        createPipeline(cfnProject, bucket);
+        Bucket artifactBucket = new Bucket(this, "PipelineArtifactBucket", BucketProps.builder()
+                .encryption(BucketEncryption.S3_MANAGED)
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .autoDeleteObjects(true)
+                .build());
+        CfnProject cfnProject = createCodeBuildProject(bucket, artifactBucket);
+        createPipeline(cfnProject, bucket, artifactBucket);
     }
 
     private Bucket createS3Bucket() {
@@ -54,7 +59,7 @@ public class ImFrontendCICDStackL1 extends Stack {
         return bucket;
     }
 
-    private CfnProject createCodeBuildProject(Bucket bucket) {
+    private CfnProject createCodeBuildProject(Bucket bucket, Bucket artifactBucket) {
 
         CfnProject.SourceProperty codeBuildSourceProp = CfnProject.SourceProperty.builder()
                 .buildSpec("buildspec.yaml")
@@ -104,6 +109,7 @@ public class ImFrontendCICDStackL1 extends Stack {
 
         // Berechtigung für S3 Bucket (Upload/Sync)
         bucket.grantReadWrite(codeBuildRole);
+        artifactBucket.grantRead(codeBuildRole);
 
         // CodeBuild Project
         CfnProject cfnCodeBuildProject = CfnProject.Builder.create(this, "ImFrontendCICDBuildProjectL1")
@@ -140,13 +146,7 @@ public class ImFrontendCICDStackL1 extends Stack {
         return cfnCodeBuildProject;
     }
 
-    private void createPipeline(CfnProject codeBuildProject, Bucket bucket) {
-        // Pipeline Artifact Bucket
-        Bucket artifactBucket = new Bucket(this, "PipelineArtifactBucket", BucketProps.builder()
-                .encryption(BucketEncryption.S3_MANAGED)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .autoDeleteObjects(true)
-                .build());
+    private void createPipeline(CfnProject codeBuildProject, Bucket bucket, Bucket artifactBucket) {
 
         // Pipeline Role
         Role pipelineRole = new Role(this, "PipelineRole", RoleProps.builder()
