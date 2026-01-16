@@ -1,5 +1,6 @@
 package com.sakai.cloud.infra;
 
+import com.sakai.cloud.junie.CodeBuildStack;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
@@ -17,7 +18,7 @@ public class Main {
                 .env(env)
                 .build();
 
-        new ImFrontendCICDStack(app, "ImFrontendCICDStack", stackProps);
+        new ImFrontendCICDStackL1(app, "ImFrontendCICDStackL1", stackProps);
         app.synth();
     }
 }

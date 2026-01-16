@@ -2,8 +2,6 @@ package com.sakai.cloud.infra;
 
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.*;
-import software.amazon.awscdk.services.codepipeline.CfnWebhook;
-import software.amazon.awscdk.services.codepipeline.CfnWebhookProps;
 import software.amazon.awscdk.services.iam.AnyPrincipal;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
@@ -21,20 +19,43 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ImFrontendCICDStack extends Stack {
-    public ImFrontendCICDStack(Construct scope, String id, StackProps props) {
+public class ImFrontendCICDStackL2 extends Stack {
+    public ImFrontendCICDStackL2(Construct scope, String id, StackProps props) {
         super(scope, id, props);
-
         Bucket bucket = createS3Bucket();
         Project codeBuildProject = createCodeBuiltProject(bucket);
     }
 
+    private Bucket createS3Bucket() {
+        // Create S3 bucket to deploy frontend application
+        BucketProps bucketProps = BucketProps.builder()
+                .encryption(BucketEncryption.S3_MANAGED)
+                .versioned(false)
+                .removalPolicy(software.amazon.awscdk.RemovalPolicy.DESTROY)
+                .autoDeleteObjects(true)
+                .websiteIndexDocument("index.html")
+                .websiteErrorDocument("index.html")
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ACLS_ONLY)
+                .publicReadAccess(true)
+                .build();
+        Bucket bucket = new Bucket(this, "ImFrontendCICDStack", bucketProps);
+
+        PolicyStatement s3PolicyStatement = PolicyStatement.Builder.create()
+                .actions(List.of("s3:GetObject"))
+                .resources(List.of(bucket.getBucketArn() + "/*"))
+                .effect(Effect.ALLOW)
+                .principals(List.of(new AnyPrincipal()))
+                .build();
+
+        bucket.addToResourcePolicy(s3PolicyStatement);
+        return bucket;
+    }
     private Project createCodeBuiltProject(Bucket bucket) {
         GitHubSourceProps gitHubSourceProps = GitHubSourceProps.builder()
+                .owner("Digitalisierung")
                 .repo("im-frontend")
                 .branchOrRef("develop")
                 .cloneDepth(1)
-                .owner("Digitalisierung")
                 .webhook(true)
                 .webhookFilters(List.of(
                         FilterGroup.
@@ -52,8 +73,8 @@ public class ImFrontendCICDStack extends Stack {
         // Environment variables
         Map<String, BuildEnvironmentVariable> buildEnvironmentVar = new HashMap<>();
         buildEnvironmentVar.put("S3_BUCKET", BuildEnvironmentVariable.builder()
-                        .type(BuildEnvironmentVariableType.PLAINTEXT)
-                        .value(bucket.getBucketName())
+                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                .value(bucket.getBucketName())
                 .build());
 
         // Logging options
@@ -97,31 +118,4 @@ public class ImFrontendCICDStack extends Stack {
 
         return codeBuildProject;
     }
-
-    private Bucket createS3Bucket() {
-        // Create S3 bucket to deploy frontend application
-        BucketProps bucketProps = BucketProps.builder()
-                .encryption(BucketEncryption.S3_MANAGED)
-                .versioned(false)
-                .removalPolicy(software.amazon.awscdk.RemovalPolicy.DESTROY)
-                .autoDeleteObjects(true)
-                .websiteIndexDocument("index.html")
-                .websiteErrorDocument("index.html")
-                .blockPublicAccess(BlockPublicAccess.BLOCK_ACLS_ONLY)
-                .publicReadAccess(true)
-                .build();
-        Bucket bucket = new Bucket(this, "ImFrontendCICDStack", bucketProps);
-
-        PolicyStatement s3PolicyStatement = PolicyStatement.Builder.create()
-                .actions(List.of("s3:GetObject"))
-                .resources(List.of(bucket.getBucketArn() + "/*"))
-                .effect(Effect.ALLOW)
-                .principals(List.of(new AnyPrincipal()))
-                .build();
-
-        bucket.addToResourcePolicy(s3PolicyStatement);
-        return bucket;
-    }
-
-    private void proofConcepts() {}
 }
