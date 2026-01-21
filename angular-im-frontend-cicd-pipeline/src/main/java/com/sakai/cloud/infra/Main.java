@@ -10,8 +10,8 @@ public class Main {
         App app = new App();
 
         Environment env = Environment.builder()
-                .region("eu-central-1")
-                .account("251183416711")
+                .region(System.getenv("AWS_REGION"))
+                .account(System.getenv("AWS_ACCOUNT_ID"))
                 .build();
 
         StackProps stackProps = StackProps.builder()

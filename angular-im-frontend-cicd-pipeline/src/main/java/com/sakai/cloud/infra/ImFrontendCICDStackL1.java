@@ -100,13 +100,6 @@ public class ImFrontendCICDStackL1 extends Stack {
                 .resources(List.of(connectionArn))
                 .build());
 
-        // Berechtigungen für CodeBuild Reports (Testberichte und Code Coverage)
-//        codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
-//                .actions(List.of("codebuild:CreateReportGroup", "codebuild:CreateReport", "codebuild:UpdateReport", "codebuild:BatchPutTestCases", "codebuild:BatchPutCodeCoverages"))
-//                .resources(List.of("arn:aws:codebuild:" + getRegion() + ":" + getAccount() + ":report-group/" + cfnCodeBuildProject.getName() + "-*"))
-//                .effect(Effect.ALLOW)
-//                .build());
-
         // Berechtigung für S3 Bucket (Upload/Sync)
         bucket.grantReadWrite(codeBuildRole);
         artifactBucket.grantRead(codeBuildRole);
