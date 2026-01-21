@@ -2,120 +2,83 @@ package com.sakai.cloud.infra;
 
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.*;
-import software.amazon.awscdk.services.iam.AnyPrincipal;
-import software.amazon.awscdk.services.iam.Effect;
-import software.amazon.awscdk.services.iam.PolicyStatement;
-import software.amazon.awscdk.services.iam.PolicyStatementProps;
-import software.amazon.awscdk.services.logs.LogGroup;
-import software.amazon.awscdk.services.logs.RetentionDays;
-import software.amazon.awscdk.services.s3.BlockPublicAccess;
-import software.amazon.awscdk.services.s3.Bucket;
-import software.amazon.awscdk.services.s3.BucketEncryption;
-import software.amazon.awscdk.services.s3.BucketProps;
+import software.amazon.awscdk.services.s3.*;
 import software.constructs.Construct;
 
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static software.amazon.awscdk.services.codebuild.LinuxBuildImage.AMAZON_LINUX_2_5;
+import static software.amazon.awscdk.services.codebuild.ComputeType.SMALL;
+import static software.amazon.awscdk.services.codebuild.BuildEnvironmentVariableType.PLAINTEXT;
 
 public class ImFrontendCICDStackL2 extends Stack {
     public ImFrontendCICDStackL2(Construct scope, String id, StackProps props) {
         super(scope, id, props);
-        Bucket bucket = createS3Bucket();
-        Project codeBuildProject = createCodeBuiltProject(bucket);
+
+        Bucket artifactBucket = createArtifactBucket();
+        Bucket imFrontendBucket = createImFrontendBucket();
+        Project codeBuildProject = createCodeBuiltProject(imFrontendBucket, artifactBucket);
     }
 
-    private Bucket createS3Bucket() {
-        // Create S3 bucket to deploy frontend application
-        BucketProps bucketProps = BucketProps.builder()
+    private Bucket createArtifactBucket(){
+        BucketProps props = BucketProps.builder()
+                .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .encryption(BucketEncryption.S3_MANAGED)
-                .versioned(false)
-                .removalPolicy(software.amazon.awscdk.RemovalPolicy.DESTROY)
-                .autoDeleteObjects(true)
-                .websiteIndexDocument("index.html")
-                .websiteErrorDocument("index.html")
-                .blockPublicAccess(BlockPublicAccess.BLOCK_ACLS_ONLY)
-                .publicReadAccess(true)
-                .build();
-        Bucket bucket = new Bucket(this, "ImFrontendCICDStack", bucketProps);
-
-        PolicyStatement s3PolicyStatement = PolicyStatement.Builder.create()
-                .actions(List.of("s3:GetObject"))
-                .resources(List.of(bucket.getBucketArn() + "/*"))
-                .effect(Effect.ALLOW)
-                .principals(List.of(new AnyPrincipal()))
+                .removalPolicy(RemovalPolicy.DESTROY)
+                .lifecycleRules(List.of(LifecycleRule.builder()
+                        .id("DeleteRuleForOldArtifactsId")
+                        .expiration(Duration.days(1))
+                        .abortIncompleteMultipartUploadAfter(Duration.days(2))
+                        .build()))
+                .versioned(true)
                 .build();
 
-        bucket.addToResourcePolicy(s3PolicyStatement);
+        Bucket bucket = new Bucket(this, "ImFrontendArtifactBucketId", props);
+
         return bucket;
     }
-    private Project createCodeBuiltProject(Bucket bucket) {
-        GitHubSourceProps gitHubSourceProps = GitHubSourceProps.builder()
-                .owner("Digitalisierung")
-                .repo("im-frontend")
-                .branchOrRef("develop")
-                .cloneDepth(1)
-                .webhook(true)
-                .webhookFilters(List.of(
-                        FilterGroup.
-                                inEventOf(EventAction.PUSH)
-                                .andBranchIs("develop")))
-                .build();
 
-        // Build environment
-        BuildEnvironment buildEnvironment = BuildEnvironment.builder()
-                .buildImage(LinuxBuildImage.AMAZON_LINUX_2_5) // entspricht: amazonlinux-x86_64-standard:5.0"
-                .computeType(ComputeType.SMALL)
-                .privileged(false)
-                .build();
-
-        // Environment variables
-        Map<String, BuildEnvironmentVariable> buildEnvironmentVar = new HashMap<>();
-        buildEnvironmentVar.put("S3_BUCKET", BuildEnvironmentVariable.builder()
-                .type(BuildEnvironmentVariableType.PLAINTEXT)
-                .value(bucket.getBucketName())
-                .build());
-
-        // Logging options
-        LogGroup logGroup = LogGroup.Builder.create(this, "ImFrontendCICDStackLogGroup")
-                .retention(RetentionDays.ONE_WEEK)
-                .removalPolicy(RemovalPolicy.DESTROY)
-                .build();
-
-        LoggingOptions loggingOptions = LoggingOptions.builder()
-                .cloudWatch(CloudWatchLoggingOptions.builder()
-                        .enabled(true)
-                        .logGroup(logGroup)
+    private Bucket createImFrontendBucket() {
+        BucketProps props = BucketProps.builder()
+                .blockPublicAccess(BlockPublicAccess.Builder.create()
+                        .blockPublicAcls(false)
+                        .blockPublicPolicy(false)
+                        .ignorePublicAcls(false)
+                        .restrictPublicBuckets(false)
                         .build())
+                .versioned(false)
+                .websiteIndexDocument("index.html")
+                .websiteErrorDocument("index.html")
+                .encryption(BucketEncryption.S3_MANAGED)
                 .build();
 
-        // Define CodeBuild project properties
-        ProjectProps codeBuildProps = ProjectProps.builder()
-                .description("Build- und Deployment-Projekt für Angular-Frontend: \"SAKAI\".")
-                .environment(buildEnvironment)
-                .source(Source.gitHub(gitHubSourceProps))
-                .buildSpec(BuildSpec.fromSourceFilename("buildspec.yaml"))
-                .environmentVariables(buildEnvironmentVar)
-                .timeout(Duration.minutes(15))
-                .queuedTimeout(Duration.minutes(480))
-                .badge(false)
+        Bucket bucket = new Bucket(this, "ImFrontendWebHostingBucketId", props);
+
+        return bucket;
+    }
+
+    private Project createCodeBuiltProject(Bucket imFrontendBucket, Bucket arttifactBucket) {
+        ProjectProps props = ProjectProps.builder()
+                .logging(LoggingOptions.builder().build())
                 .autoRetryLimit(0)
-                .logging(loggingOptions)
+                .environment(BuildEnvironment.builder()
+                        .computeType(SMALL)
+                        .buildImage(AMAZON_LINUX_2_5)
+                        .build())
+                .environmentVariables(Map.of(
+                        "S3_BUCKET", BuildEnvironmentVariable.builder()
+                                .type(PLAINTEXT)
+                                .value(imFrontendBucket.getBucketName())
+                                .build()))
+                .badge(false)
+                .queuedTimeout(Duration.minutes(480))
+                .buildSpec(BuildSpec.fromSourceFilename("buildspec.yaml"))
+                .timeout(Duration.minutes(20))
                 .build();
 
-        // Create CodeBuild project to deploy frontend application
-        Project codeBuildProject = new Project(this, "NgImFrontendCodeBuildProject", codeBuildProps);
+        Project project = new Project(this, "ImFrontendBuildProjectId", props);
 
-        PolicyStatement policyStatement = new PolicyStatement(PolicyStatementProps.builder()
-                .actions(Arrays.asList("s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket", "s3:GetBucketLocation"))
-                .effect(Effect.ALLOW)
-                .resources(List.of("arn:aws:s3:::" + bucket.getBucketArn(), "arn:aws:s3:::" + bucket.getBucketArn() + "/*"))
-                .build());
-        codeBuildProject.addToRolePolicy(policyStatement);
-
-        Tags.of(codeBuildProject).add("SakaiNGCodeBuildProjekt", "NG Frontend");
-
-        return codeBuildProject;
+        return project;
     }
 }

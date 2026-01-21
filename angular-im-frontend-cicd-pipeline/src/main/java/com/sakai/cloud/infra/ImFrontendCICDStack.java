@@ -82,7 +82,7 @@ public class ImFrontendCICDStack extends Stack {
                 .websiteConfiguration(websiteConfiguration)
                 .publicAccessBlockConfiguration(publicAccessConfiguration)
                 .versioningConfiguration(CfnBucket.VersioningConfigurationProperty.builder()
-                        .status("Disabled")
+                        .status("Suspended")
                         .build())
                 .build();
 

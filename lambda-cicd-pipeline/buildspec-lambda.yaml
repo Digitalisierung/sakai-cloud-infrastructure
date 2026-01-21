@@ -1,0 +1,47 @@
+version: 0.2
+
+# Buildspec für Lambda Java/Kotlin Funktionen
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+    commands:
+      - echo Installing dependencies...
+
+  pre_build:
+    commands:
+      - echo Running tests...
+      - mvn test
+
+  build:
+    commands:
+      - echo Building Lambda JAR...
+      - mvn clean package -DskipTests
+      - echo Build completed on `date`
+
+  post_build:
+    commands:
+      - echo Preparing deployment artifact...
+      - ARTIFACT_NAME="lambda-function-${CODEBUILD_RESOLVED_SOURCE_VERSION}.jar"
+      - mv target/*.jar $ARTIFACT_NAME
+      - aws s3 cp $ARTIFACT_NAME s3://${S3_BUCKET}/${ARTIFACT_NAME}
+      - echo "Lambda artifact uploaded to S3"
+      
+      # Deployment Config für Pipeline
+      - |
+        cat > deploy-config.json <<EOF
+        {
+          "s3Bucket": "${S3_BUCKET}",
+          "s3Key": "${ARTIFACT_NAME}",
+          "functionName": "${LAMBDA_FUNCTION_NAME}"
+        }
+        EOF
+
+artifacts:
+  files:
+    - deploy-config.json
+  name: LambdaBuildArtifact
+
+cache:
+  paths:
+    - '/root/.m2/**/*'
