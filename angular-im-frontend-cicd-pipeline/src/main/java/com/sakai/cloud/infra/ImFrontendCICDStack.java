@@ -14,6 +14,7 @@ import software.amazon.awscdk.services.s3.CfnBucketPolicyProps;
 import software.amazon.awscdk.services.s3.CfnBucketProps;
 import software.constructs.Construct;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +30,7 @@ public class ImFrontendCICDStack extends Stack {
 
         CfnBucket imFrontendBucket = createImFrontendBucket();
         CfnBucket artifactBucket = createPipelineArtifactBucket();
-        CfnProject codeBuildProject = createCodeBuildProject(imFrontendBucket);
+        CfnProject codeBuildProject = createCodeBuildProject(imFrontendBucket, artifactBucket);
         createL1Pipeline(codeBuildProject, imFrontendBucket, artifactBucket);
     }
 
@@ -88,15 +89,20 @@ public class ImFrontendCICDStack extends Stack {
         CfnBucket imFrontendBucket = new CfnBucket(this, "ImFrontendWebHostingBucket", bucketProps);
 
         // Bucket Policy
+        Map<String, Object> publicReadAccess = new HashMap<>();
+        publicReadAccess.put("Effect", "Allow");
+        publicReadAccess.put("Principal", "*");
+        publicReadAccess.put("Action", "s3:GetObject");
+        publicReadAccess.put("Resource", imFrontendBucket.getAttrArn() + "/*");
+        publicReadAccess.put("Sid", "PublicReadAccess");
+
+        Map<String, Object> policyDocument = new HashMap<>();
+        policyDocument.put("Version", "2012-10-17");
+        policyDocument.put("Statement", List.of(publicReadAccess));
+
         CfnBucketPolicyProps bucketPolicyProps = CfnBucketPolicyProps.builder()
                 .bucket(imFrontendBucket.getRef())
-                .policyDocument(PolicyStatement.Builder.create()
-                        .effect(Effect.ALLOW)
-                        .actions(List.of("s3:GetObject"))
-                        .resources(List.of(imFrontendBucket.getAttrArn() + "/*"))
-                        .principals(List.of(new AnyPrincipal()))
-                        .sid("PublicReadAccess")
-                        .build())
+                .policyDocument(policyDocument)
                 .build();
 
         new CfnBucketPolicy(this, "ImFrontendWebHostingBucketPolicy", bucketPolicyProps);
@@ -104,50 +110,62 @@ public class ImFrontendCICDStack extends Stack {
         return imFrontendBucket;
     }
 
-    private CfnProject createCodeBuildProject(CfnBucket imFrontendBucket) {
-        PolicyDocumentProps props = PolicyDocumentProps.builder()
-                .statements(List.of(
-                        PolicyStatement.Builder.create()
-                                .actions(List.of("s3:GetObject", "s3:PutObject", "s3:DeleteObject"))
-                                .effect(Effect.ALLOW)
-                                .resources(List.of(imFrontendBucket.getAttrArn() + "/*"))
-                                .build(),
-                        PolicyStatement.Builder.create()
-                                .actions(List.of("s3:ListBucket"))
-                                .effect(Effect.ALLOW)
-                                .resources(List.of(imFrontendBucket.getAttrArn()))
-                                .build(),
-                        PolicyStatement.Builder.create()
-                                .actions(List.of("codeconnections:UseConnection"))
-                                .effect(Effect.ALLOW)
-                                .resources(List.of(connectionArn))
-                                .build(),
-                        PolicyStatement.Builder.create()
-                                .actions(List.of("logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"))
-                                .effect(Effect.ALLOW)
-                                .build()
-                        )
-                )
+    private CfnProject createCodeBuildProject(CfnBucket imFrontendBucket, CfnBucket artifactBucket) {
+        // CodeBuild Service Role
+        RoleProps roleProps = RoleProps.builder()
+                .assumedBy(new ServicePrincipal("codebuild.amazonaws.com"))
+                .description("Role für CodeBuild Projekt zum Bereitstellen von Angular Frontend")
                 .build();
 
-        PolicyDocument policyDocument = new PolicyDocument(props);
-
-        CfnRoleProps roleProps = CfnRoleProps.builder()
-                .assumeRolePolicyDocument(List.of(policyDocument))
-                .build();
-
-        CfnRole codeBuildRole = new CfnRole(this, "CodeBuildRoleId", roleProps);
+        Role codeBuildRole = new Role(this, "CodeBuildRoleId", roleProps);
+        
+        // S3 Berechtigungen für Frontend Bucket
+        codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of("s3:GetObject", "s3:PutObject", "s3:DeleteObject"))
+                .effect(Effect.ALLOW)
+                .resources(List.of(imFrontendBucket.getAttrArn() + "/*"))
+                .build());
+        
+        codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of("s3:ListBucket"))
+                .effect(Effect.ALLOW)
+                .resources(List.of(imFrontendBucket.getAttrArn()))
+                .build());
+        
+        // S3 Berechtigungen für Artifact Bucket
+        codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of("s3:GetObject", "s3:PutObject"))
+                .effect(Effect.ALLOW)
+                .resources(List.of(artifactBucket.getAttrArn() + "/*"))
+                .build());
+        
+        // CloudWatch Logs Berechtigungen
+        codeBuildRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of("logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"))
+                .effect(Effect.ALLOW)
+                .resources(List.of("arn:aws:logs:" + getRegion() + ":" + getAccount() + ":log-group:/aws/codebuild/*"))
+                .build());
 
         CfnProject.EnvironmentProperty environmentProperty = CfnProject.EnvironmentProperty.builder()
                 .computeType("BUILD_GENERAL1_SMALL")
-                .image("aws/codebuild/amazonlinux2-x86_64-standard:4.0")
+                .image("aws/codebuild/amazonlinux2-x86_64-standard:5.0")
                 .imagePullCredentialsType("CODEBUILD")
                 .privilegedMode(false)
                 .type("LINUX_CONTAINER")
                 .environmentVariables(List.of(
                         CfnProject.EnvironmentVariableProperty.builder()
                                 .name("S3_BUCKET")
-                                .value(imFrontendBucket.getBucketName())
+                                .value(imFrontendBucket.getRef())
+                                .type("PLAINTEXT")
+                                .build(),
+                        CfnProject.EnvironmentVariableProperty.builder()
+                                .name("AWS_DEFAULT_REGION")
+                                .value(getRegion())
+                                .type("PLAINTEXT")
+                                .build(),
+                        CfnProject.EnvironmentVariableProperty.builder()
+                                .name("AWS_ACCOUNT_ID")
+                                .value(getAccount())
                                 .type("PLAINTEXT")
                                 .build()
                 ))
@@ -171,7 +189,7 @@ public class ImFrontendCICDStack extends Stack {
                 .queuedTimeoutInMinutes(480)
                 .timeoutInMinutes(20)
                 .autoRetryLimit(0)
-                .serviceRole(codeBuildRole.getAttrArn())
+                .serviceRole(codeBuildRole.getRoleArn())
                 .logsConfig(CfnProject.LogsConfigProperty.builder()
                         .cloudWatchLogs(CfnProject.CloudWatchLogsConfigProperty.builder()
                                 .status("ENABLED")
@@ -251,7 +269,7 @@ public class ImFrontendCICDStack extends Stack {
                 .configuration(Map.of(
                         "ConnectionArn", connectionArn,
                         "FullRepositoryId", "Digitalisierung/im-frontend",
-                        "branchName", "develop",
+                        "BranchName", "develop",
                         "OutputArtifactFormat", "CODE_ZIP"
                 ))
                 .outputArtifacts(List.of(
@@ -293,7 +311,7 @@ public class ImFrontendCICDStack extends Stack {
                 .roleArn(pipelineRole.getRoleArn())
                 .artifactStore(CfnPipeline.ArtifactStoreProperty.builder()
                         .type("S3")
-                        .location(pipelineArtifactBucket.getBucketName())
+                        .location(pipelineArtifactBucket.getRef())
                         .build())
                 .stages(List.of(gitHubStage, codeBuildStage))
                 .build();

@@ -1,124 +1,58 @@
 Resources:
-  BucketForImFrontendCICDStackL19AC2CB0F:
+  ImFrontendWebHostingBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
+        BlockPublicAcls: false
         BlockPublicPolicy: false
-        IgnorePublicAcls: true
+        IgnorePublicAcls: false
         RestrictPublicBuckets: false
-      Tags:
-        - Key: aws-cdk:auto-delete-objects
-          Value: "true"
+      VersioningConfiguration:
+        Status: Disabled
       WebsiteConfiguration:
         ErrorDocument: index.html
         IndexDocument: index.html
-    UpdateReplacePolicy: Delete
-    DeletionPolicy: Delete
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/BucketForImFrontendCICDStackL1/Resource
-  BucketForImFrontendCICDStackL1Policy0C72CA99:
+      aws:cdk:path: ImFrontendCICDStack/ImFrontendWebHostingBucket
+  ImFrontendWebHostingBucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
       Bucket:
-        Ref: BucketForImFrontendCICDStackL19AC2CB0F
+        Ref: ImFrontendWebHostingBucket
       PolicyDocument:
+        Version: "2012-10-17"
         Statement:
           - Action: s3:GetObject
-            Effect: Allow
-            Principal:
-              AWS: "*"
             Resource:
               Fn::Join:
                 - ""
                 - - Fn::GetAtt:
-                      - BucketForImFrontendCICDStackL19AC2CB0F
+                      - ImFrontendWebHostingBucket
                       - Arn
                   - /*
-          - Action:
-              - s3:DeleteObject*
-              - s3:GetBucket*
-              - s3:List*
-              - s3:PutBucketPolicy
             Effect: Allow
-            Principal:
-              AWS:
-                Fn::GetAtt:
-                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
-                  - Arn
-            Resource:
-              - Fn::GetAtt:
-                  - BucketForImFrontendCICDStackL19AC2CB0F
-                  - Arn
-              - Fn::Join:
-                  - ""
-                  - - Fn::GetAtt:
-                        - BucketForImFrontendCICDStackL19AC2CB0F
-                        - Arn
-                    - /*
-        Version: "2012-10-17"
+            Principal: "*"
+            Sid: PublicReadAccess
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/BucketForImFrontendCICDStackL1/Policy/Resource
-  BucketForImFrontendCICDStackL1AutoDeleteObjectsCustomResource742D8BD6:
-    Type: Custom::S3AutoDeleteObjects
+      aws:cdk:path: ImFrontendCICDStack/ImFrontendWebHostingBucketPolicy
+  ArtifactBucketId:
+    Type: AWS::S3::Bucket
     Properties:
-      ServiceToken:
-        Fn::GetAtt:
-          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
-          - Arn
-      BucketName:
-        Ref: BucketForImFrontendCICDStackL19AC2CB0F
-    DependsOn:
-      - BucketForImFrontendCICDStackL1Policy0C72CA99
-    UpdateReplacePolicy: Delete
-    DeletionPolicy: Delete
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 1
+            Id: DeleteOldArtifactsId
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/BucketForImFrontendCICDStackL1/AutoDeleteObjectsCustomResource/Default
-  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Action: sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-      ManagedPolicyArns:
-        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-    Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
-  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
-    Type: AWS::Lambda::Function
-    Properties:
-      Code:
-        S3Bucket: cdk-hnb659fds-assets-315735600242-eu-central-1
-        S3Key: faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip
-      Timeout: 900
-      MemorySize: 128
-      Handler: index.handler
-      Role:
-        Fn::GetAtt:
-          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
-          - Arn
-      Runtime: nodejs22.x
-      Description:
-        Fn::Join:
-          - ""
-          - - "Lambda function for auto-deleting objects in "
-            - Ref: BucketForImFrontendCICDStackL19AC2CB0F
-            - " S3 bucket."
-    DependsOn:
-      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
-    Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
-      aws:asset:path: asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6
-      aws:asset:property: Code
-  CodeBuildRole728CBADE:
+      aws:cdk:path: ImFrontendCICDStack/ArtifactBucketId
+  CodeBuildRoleId100E8946:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -128,63 +62,60 @@ Resources:
             Principal:
               Service: codebuild.amazonaws.com
         Version: "2012-10-17"
+      Description: Role für CodeBuild Projekt zum Bereitstellen von Angular Frontend
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/CodeBuildRole/Resource
-  CodeBuildRoleDefaultPolicy829527DE:
+      aws:cdk:path: ImFrontendCICDStack/CodeBuildRoleId/Resource
+  CodeBuildRoleIdDefaultPolicyD2F518EE:
     Type: AWS::IAM::Policy
     Properties:
       PolicyDocument:
         Statement:
           - Action:
+              - s3:DeleteObject
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ImFrontendWebHostingBucket
+                      - Arn
+                  - /*
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ImFrontendWebHostingBucket
+                - Arn
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ArtifactBucketId
+                      - Arn
+                  - /*
+          - Action:
               - logs:CreateLogGroup
               - logs:CreateLogStream
               - logs:PutLogEvents
             Effect: Allow
-            Resource:
-              - arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/ImFrontendCICDStack
-              - arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/ImFrontendCICDStack:*
-          - Action:
-              - codeconnections:GetConnection
-              - codeconnections:GetConnectionToken
-              - codeconnections:UseConnection
-              - codestar-connections:GetConnection
-              - codestar-connections:GetConnectionToken
-              - codestar-connections:UseConnection
-            Effect: Allow
-            Resource: arn:aws:codeconnections:eu-central-1:315735600242:connection/3baf9c01-87e6-408b-82af-6f37b63edecc
-          - Action:
-              - s3:Abort*
-              - s3:DeleteObject*
-              - s3:GetBucket*
-              - s3:GetObject*
-              - s3:List*
-              - s3:PutObject
-              - s3:PutObjectLegalHold
-              - s3:PutObjectRetention
-              - s3:PutObjectTagging
-              - s3:PutObjectVersionTagging
-            Effect: Allow
-            Resource:
-              - Fn::GetAtt:
-                  - BucketForImFrontendCICDStackL19AC2CB0F
-                  - Arn
-              - Fn::Join:
-                  - ""
-                  - - Fn::GetAtt:
-                        - BucketForImFrontendCICDStackL19AC2CB0F
-                        - Arn
-                    - /*
+            Resource: arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/*
         Version: "2012-10-17"
-      PolicyName: CodeBuildRoleDefaultPolicy829527DE
+      PolicyName: CodeBuildRoleIdDefaultPolicyD2F518EE
       Roles:
-        - Ref: CodeBuildRole728CBADE
+        - Ref: CodeBuildRoleId100E8946
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/CodeBuildRole/DefaultPolicy/Resource
-  ImFrontendCICDBuuldProjectL1:
+      aws:cdk:path: ImFrontendCICDStack/CodeBuildRoleId/DefaultPolicy/Resource
+  ImFrontendCodeBuildProjectId:
     Type: AWS::CodeBuild::Project
     Properties:
       Artifacts:
-        Type: NO_ARTIFACTS
+        Type: CODEPIPELINE
       AutoRetryLimit: 0
       BadgeEnabled: false
       Cache:
@@ -196,51 +127,149 @@ Resources:
           - Name: S3_BUCKET
             Type: PLAINTEXT
             Value:
-              Ref: BucketForImFrontendCICDStackL19AC2CB0F
-        Image: aws/codebuild/standard:5.0
+              Ref: ImFrontendWebHostingBucket
+          - Name: AWS_DEFAULT_REGION
+            Type: PLAINTEXT
+            Value: eu-central-1
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value: "315735600242"
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
         ImagePullCredentialsType: CODEBUILD
         PrivilegedMode: false
         Type: LINUX_CONTAINER
       LogsConfig:
         CloudWatchLogs:
-          GroupName: /aws/codebuild/ImFrontendCICDStack
+          GroupName: /aws/codebuild/ImFrontendCICDBuildProjectL1
           Status: ENABLED
         S3Logs:
           Status: DISABLED
       QueuedTimeoutInMinutes: 480
       ServiceRole:
         Fn::GetAtt:
-          - CodeBuildRole728CBADE
+          - CodeBuildRoleId100E8946
           - Arn
       Source:
-        Auth:
-          Resource: arn:aws:codeconnections:eu-central-1:315735600242:connection/3baf9c01-87e6-408b-82af-6f37b63edecc
-          Type: CODECONNECTIONS
         BuildSpec: buildspec.yaml
-        GitCloneDepth: 1
-        GitSubmodulesConfig:
-          FetchSubmodules: false
-        Location: https://github.com/Digitalisierung/im-frontend
-        ReportBuildStatus: true
-        Type: GITHUB
-      SourceVersion: develop
+        Type: CODEPIPELINE
       TimeoutInMinutes: 20
-      Triggers:
-        FilterGroups:
-          - - Pattern: PUSH
-              Type: EVENT
-            - Pattern: refs/heads/develop
-              Type: HEAD_REF
-        Webhook: true
       Visibility: PRIVATE
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/ImFrontendCICDBuuldProjectL1
+      aws:cdk:path: ImFrontendCICDStack/ImFrontendCodeBuildProjectId
+  ImFrontendPipelineRole25AA5723:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+      Description: Diese Role Wird verwendet für Im-Fronend zum Bereitstellen von Frontend (Angular) im AWS Pipeline.
+    Metadata:
+      aws:cdk:path: ImFrontendCICDStack/ImFrontendPipelineRole/Resource
+  ImFrontendPipelineRoleDefaultPolicy0F7ADDC6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codeconnections:UseConnection
+              - codestar-connections:UseConnection
+            Effect: Allow
+            Resource: arn:aws:codeconnections:eu-central-1:315735600242:connection/0eb84fa4-1c3f-4b0b-8434-a3f94184c621
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ImFrontendCodeBuildProjectId
+                - Arn
+          - Action:
+              - s3:DeleteObject
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ArtifactBucketId
+                      - Arn
+                  - /*
+          - Action:
+              - s3:DeleteObject
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImFrontendWebHostingBucket
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImFrontendWebHostingBucket
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: ImFrontendPipelineRoleDefaultPolicy0F7ADDC6
+      Roles:
+        - Ref: ImFrontendPipelineRole25AA5723
+    Metadata:
+      aws:cdk:path: ImFrontendCICDStack/ImFrontendPipelineRole/DefaultPolicy/Resource
+  ImFrontendPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location:
+          Ref: ArtifactBucketId
+        Type: S3
+      RoleArn:
+        Fn::GetAtt:
+          - ImFrontendPipelineRole25AA5723
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              Configuration:
+                BranchName: develop
+                FullRepositoryId: Digitalisierung/im-frontend
+                OutputArtifactFormat: CODE_ZIP
+                ConnectionArn: arn:aws:codeconnections:eu-central-1:315735600242:connection/0eb84fa4-1c3f-4b0b-8434-a3f94184c621
+              Name: GitHub_Source
+              OutputArtifacts:
+                - Name: SourceOutput
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: ImFrontendCodeBuildProjectId
+              InputArtifacts:
+                - Name: SourceOutput
+              Name: CodeBuild
+          Name: Build
+    Metadata:
+      aws:cdk:path: ImFrontendCICDStack/ImFrontendPipeline
   CDKMetadata:
     Type: AWS::CDK::Metadata
     Properties:
-      Analytics: v2:deflate64:H4sIAAAAAAAA/52ST2sbMRDFP0vmaGQ1iQ+Bva3jUFJoa+zcTAhaaZIo1kpGM7JrxH73sv8SXFMIOYl9v9G8N6O9ltezmby8UAeaarOdOlvJvGalt0Id6CnTTOZ50lvkTQaVOCzQIePv6g01ExQcEwqoXNDbZaqc1aXWSAQFTEAAeh2PO7bBQwHr2dPP8lf5/W4BAnZd8QqVGS/0nSLWYa/cMjirj1CAQeIYjiBgj5Fs8GigeFaOUMABK7KMdzGGuAg61eh5MB7QvTf45wQ1j+L22fcTif7ovTYZqu7zrKznjbCqlnkVHLabIEo1mvkRigy7aL22O+VKrUN6z9DXtBdKPaxgAk0jMihjHsI44iY3jx/i2OqMMiv9eu+d9fjOYAKfgF8w+z/t9tLOJIa1taOOCR5CS86CncvGrFkxtq9CJ7aflbsY48PoYLBK1hnZijG0v2YjbhNxqFdIIUWNnXeXfRD+4csY9tZgnCtCURIhr1m9WP8iTjo04ofaq29XN/JSXt1cvJG105g82xrlqj//AoLm6jtSAwAA
+      Analytics: v2:deflate64:H4sIAAAAAAAA/+2TwU7DMAyGn2U5TmnY1sOk3jZOcELdbtOEMscIr2lSNSnTFPXdUdqtgHpBgBAHTrG+P47tX85CLNJUzCby5BJQRaLpIMLGSyi4PLnH4FIRbp/MuoECPR+iB6sJzi0nWYqQW427wKRzTYlqfWZZYFVNBqiSegVgG+NZxqaMX+7EhBV4sqbDLWcKHdRUvUOBSaW2ti/Esl1o92/w+vhI9V7C853RZHDQ2JR9QvxCsd9J+Xf1p1P2cY+jW7zHsd1hkq2NymjAMVZq46XHEo13H8p+F/+pbjqvrr8drMJDQ1qJCGt7RPAdrKjCuAAdv8Qtz9HZpgbs/O07vZcv8ma+FDMxX06OjiipG+OpRJH35yuxwMsbkAQAAA==
     Metadata:
-      aws:cdk:path: ImFrontendCICDStackL1/CDKMetadata/Default
+      aws:cdk:path: ImFrontendCICDStack/CDKMetadata/Default
 Parameters:
   BootstrapVersion:
     Type: AWS::SSM::Parameter::Value<String>

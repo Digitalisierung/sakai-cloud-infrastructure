@@ -10,15 +10,15 @@ public class Main {
         App app = new App();
 
         Environment env = Environment.builder()
-                .region(System.getenv("AWS_REGION"))
-                .account(System.getenv("AWS_ACCOUNT_ID"))
+                .region(System.getenv("CDK_DEFAULT_REGION"))
+                .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
                 .build();
 
         StackProps stackProps = StackProps.builder()
                 .env(env)
                 .build();
 
-        new com.sakai.cloud.infra.ImFrontendCICDStackL1(app, "ImFrontendCICDStackL1", stackProps);
+        new com.sakai.cloud.infra.ImFrontendCICDStack(app, "ImFrontendCICDStack", stackProps);
         app.synth();
     }
 }
