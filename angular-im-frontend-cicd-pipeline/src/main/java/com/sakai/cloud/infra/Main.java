@@ -18,7 +18,7 @@ public class Main {
                 .env(env)
                 .build();
 
-        new com.sakai.cloud.infra.ImFrontendCICDStack(app, "ImFrontendCICDStack", stackProps);
+        new com.sakai.cloud.infra.ImFrontendCICDStackL2(app, "ImFrontendCICDStackL2", stackProps);
         app.synth();
     }
 }

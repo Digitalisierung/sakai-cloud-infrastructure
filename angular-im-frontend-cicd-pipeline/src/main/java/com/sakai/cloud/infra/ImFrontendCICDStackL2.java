@@ -2,6 +2,15 @@ package com.sakai.cloud.infra;
 
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.*;
+import software.amazon.awscdk.services.codepipeline.Artifact;
+import software.amazon.awscdk.services.codepipeline.Pipeline;
+import software.amazon.awscdk.services.codepipeline.PipelineProps;
+import software.amazon.awscdk.services.codepipeline.StageProps;
+import software.amazon.awscdk.services.codepipeline.actions.CodeBuildAction;
+import software.amazon.awscdk.services.codepipeline.actions.CodeBuildActionProps;
+import software.amazon.awscdk.services.codepipeline.actions.CodeBuildActionType;
+import software.amazon.awscdk.services.codepipeline.actions.CodeStarConnectionsSourceAction;
+import software.amazon.awscdk.services.iam.*;
 import software.amazon.awscdk.services.s3.*;
 import software.constructs.Construct;
 
@@ -13,15 +22,32 @@ import static software.amazon.awscdk.services.codebuild.ComputeType.SMALL;
 import static software.amazon.awscdk.services.codebuild.BuildEnvironmentVariableType.PLAINTEXT;
 
 public class ImFrontendCICDStackL2 extends Stack {
+    private String connectionId;
+    private String connectionArn;
+    private String fullRepositoryId;
+    private String branchName;
+    private String repoOwner;
+    private String repoName;
+
     public ImFrontendCICDStackL2(Construct scope, String id, StackProps props) {
         super(scope, id, props);
+
+        connectionId = "0eb84fa4-1c3f-4b0b-8434-a3f94184c621";
+        connectionArn = "arn:aws:codeconnections:" + getRegion() + ":" + getAccount() + ":connection/" + connectionId;
+
+        repoOwner = "Digitalisierung";
+        repoName = "im-frontend";
+        branchName = "develop";
+        fullRepositoryId = repoOwner + "/" + repoName;
 
         Bucket artifactBucket = createArtifactBucket();
         Bucket imFrontendBucket = createImFrontendBucket();
         Project codeBuildProject = createCodeBuiltProject(imFrontendBucket, artifactBucket);
+
+        createImFrontendPipeline(codeBuildProject, artifactBucket);
     }
 
-    private Bucket createArtifactBucket(){
+    private Bucket createArtifactBucket() {
         BucketProps props = BucketProps.builder()
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
                 .encryption(BucketEncryption.S3_MANAGED)
@@ -58,9 +84,36 @@ public class ImFrontendCICDStackL2 extends Stack {
         return bucket;
     }
 
-    private Project createCodeBuiltProject(Bucket imFrontendBucket, Bucket arttifactBucket) {
+    private Project createCodeBuiltProject(Bucket imFrontendBucket, Bucket artifactBucket) {
+        // Role to build and deploy Website to S3 bucket.
+        RoleProps roleProps = RoleProps.builder()
+                .assumedBy(ServicePrincipal.Builder.create("codebuild.amazonaws.com").build())
+                .build();
+
+        Role role = new Role(this, "ImFrontendCodeBuildRoleID", roleProps);
+        role.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of("logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"))
+                .resources(List.of())
+                .effect(Effect.ALLOW)
+                .build());
+
+        role.addToPolicy(PolicyStatement.Builder.create()
+                .resources(List.of(imFrontendBucket.getBucketArn()))
+                .actions(List.of("s3:ListBucket", "s3:GetBucketLocation"))
+                .effect(Effect.ALLOW)
+                .build());
+
+        imFrontendBucket.grantReadWrite(role);
+        imFrontendBucket.grantDelete(role);
+        artifactBucket.grantRead(role);
+
+        // CodeBuild Project
         ProjectProps props = ProjectProps.builder()
-                .logging(LoggingOptions.builder().build())
+                .logging(LoggingOptions.builder()
+                        .cloudWatch(CloudWatchLoggingOptions.builder()
+                                .enabled(true)
+                                .build())
+                        .build())
                 .autoRetryLimit(0)
                 .environment(BuildEnvironment.builder()
                         .computeType(SMALL)
@@ -81,4 +134,48 @@ public class ImFrontendCICDStackL2 extends Stack {
 
         return project;
     }
+
+    private Pipeline createImFrontendPipeline(Project codeBuildProject, Bucket artifactBucket) {
+        Artifact sourceOutput = new Artifact("SourceOutput");
+
+        StageProps sourceProps = StageProps.builder()
+                .stageName("Source")
+                .actions(List.of(CodeStarConnectionsSourceAction.Builder.create()
+                        .actionName("CodeStarConnectionsSourceAction")
+                        .connectionArn(connectionArn)
+                        .owner(repoOwner)
+                        .repo(repoName)
+                        .branch(branchName)
+                        .output(sourceOutput)
+                        .build()))
+                .build();
+
+        StageProps buildProps = StageProps.builder()
+                .stageName("CodeBuild")
+                .actions(List.of(
+                        new CodeBuildAction(CodeBuildActionProps.builder()
+                                .actionName("CodeBuildAction")
+                                .project(codeBuildProject)
+                                .type(CodeBuildActionType.BUILD)
+                                .input(sourceOutput)
+                                .build())
+                ))
+                .build();
+
+        PipelineProps pipelineProps = PipelineProps.builder()
+                .artifactBucket(artifactBucket)
+                .stages(List.of(sourceProps, buildProps))
+                .build();
+
+        Pipeline pipeline = new Pipeline(this, "ImFrontendPipelineId", pipelineProps);
+
+        pipeline.addToRolePolicy(PolicyStatement.Builder.create()
+                .resources(List.of(connectionArn))
+                .actions(List.of("codestar-connections:UseConnection"))
+                .effect(Effect.ALLOW)
+                .build());
+
+        return pipeline;
+    }
+
 }
