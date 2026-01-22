@@ -6,6 +6,7 @@ import software.amazon.awscdk.services.codepipeline.*;
 import software.amazon.awscdk.services.codepipeline.actions.*;
 import software.amazon.awscdk.services.iam.*;
 import software.amazon.awscdk.services.lambda.*;
+import software.amazon.awscdk.services.lambda.Runtime;
 import software.amazon.awscdk.services.s3.*;
 import software.constructs.Construct;
 
@@ -109,8 +110,8 @@ public class LambdaCICDStack extends Stack {
                 .build();
     }
 
-    private void createPipeline(String connectionArn, PipelineProject buildProject, 
-                                Function lambdaFunction, Bucket pipelineArtifactBucket, 
+    private void createPipeline(String connectionArn, PipelineProject buildProject,
+                                Function lambdaFunction, Bucket pipelineArtifactBucket,
                                 Bucket lambdaArtifactBucket) {
 
         Artifact sourceOutput = new Artifact("SourceOutput");
@@ -121,7 +122,16 @@ public class LambdaCICDStack extends Stack {
                 .assumedBy(new ServicePrincipal("codepipeline.amazonaws.com"))
                 .build());
 
-        lambdaFunction.grantUpdate(pipelineRole);
+        pipelineRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of(
+                        "lambda:UpdateFunctionCode",
+                        "lambda:GetFunction",
+                        "lambda:GetFunctionConfiguration",
+                        "lambda:UpdateFunctionConfiguration"
+                ))
+                .resources(List.of(lambdaFunction.getFunctionArn()))
+                .build());
+
         lambdaArtifactBucket.grantRead(pipelineRole);
 
         Pipeline pipeline = Pipeline.Builder.create(this, "LambdaPipeline")
@@ -179,7 +189,16 @@ public class LambdaCICDStack extends Stack {
                 ))
                 .build());
 
-        targetLambda.grantUpdate(deployRole);
+        deployRole.addToPolicy(PolicyStatement.Builder.create()
+                .actions(List.of(
+                        "lambda:UpdateFunctionCode",
+                        "lambda:GetFunctionConfiguration",
+                        "lambda:UpdateFunctionConfiguration",
+                        "lambda:GetFunction"
+                ))
+                .resources(List.of(targetLambda.getFunctionArn()))
+                .build());
+
         artifactBucket.grantRead(deployRole);
 
         return new Function(this, "DeployFunction", FunctionProps.builder()
@@ -189,17 +208,17 @@ public class LambdaCICDStack extends Stack {
                 .timeout(Duration.minutes(5))
                 .code(Code.fromInline(
                         "import boto3\n" +
-                        "import json\n" +
-                        "lambda_client = boto3.client('lambda')\n" +
-                        "def handler(event, context):\n" +
-                        "    config = json.loads(event['CodePipeline.job']['data']['inputArtifacts'][0]['location']['s3Location']['objectKey'])\n" +
-                        "    response = lambda_client.update_function_code(\n" +
-                        "        FunctionName='" + targetLambda.getFunctionName() + "',\n" +
-                        "        S3Bucket=config['s3Bucket'],\n" +
-                        "        S3Key=config['s3Key'],\n" +
-                        "        Publish=True\n" +
-                        "    )\n" +
-                        "    return {'statusCode': 200, 'body': json.dumps(response)}\n"
+                                "import json\n" +
+                                "lambda_client = boto3.client('lambda')\n" +
+                                "def handler(event, context):\n" +
+                                "    config = json.loads(event['CodePipeline.job']['data']['inputArtifacts'][0]['location']['s3Location']['objectKey'])\n" +
+                                "    response = lambda_client.update_function_code(\n" +
+                                "        FunctionName='" + targetLambda.getFunctionName() + "',\n" +
+                                "        S3Bucket=config['s3Bucket'],\n" +
+                                "        S3Key=config['s3Key'],\n" +
+                                "        Publish=True\n" +
+                                "    )\n" +
+                                "    return {'statusCode': 200, 'body': json.dumps(response)}\n"
                 ))
                 .build());
     }
