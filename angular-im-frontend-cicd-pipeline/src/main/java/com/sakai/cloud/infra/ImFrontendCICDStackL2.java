@@ -82,6 +82,14 @@ public class ImFrontendCICDStackL2 extends Stack {
 
         Bucket bucket = new Bucket(this, "ImFrontendWebHostingBucketId", props);
 
+        // Public read policy for website hosting
+        bucket.addToResourcePolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .principals(List.of(new AnyPrincipal()))
+                .actions(List.of("s3:GetObject"))
+                .resources(List.of(bucket.getBucketArn() + "/*"))
+                .build());
+
         return bucket;
     }
 
@@ -110,6 +118,11 @@ public class ImFrontendCICDStackL2 extends Stack {
 
         // CodeBuild Project
         ProjectProps props = ProjectProps.builder()
+                .role(role)
+                .source(Source.s3(S3SourceProps.builder()
+                        .bucket(artifactBucket)
+                        .path("source.zip")
+                        .build()))
                 .logging(LoggingOptions.builder()
                         .cloudWatch(CloudWatchLoggingOptions.builder()
                                 .logGroup(LogGroup.Builder.create(this, "ImFrontendBuildLogGroup")
@@ -180,5 +193,4 @@ public class ImFrontendCICDStackL2 extends Stack {
 
         return pipeline;
     }
-
 }

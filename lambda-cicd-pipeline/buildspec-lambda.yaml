@@ -1,47 +1,46 @@
 version: 0.2
 
-# Buildspec für Lambda Java/Kotlin Funktionen
 phases:
   install:
     runtime-versions:
       java: corretto17
-    commands:
-      - echo Installing dependencies...
-
-  pre_build:
-    commands:
-      - echo Running tests...
-      - mvn test
-
+  
   build:
     commands:
-      - echo Building Lambda JAR...
-      - mvn clean package -DskipTests
-      - echo Build completed on `date`
-
-  post_build:
-    commands:
-      - echo Preparing deployment artifact...
-      - ARTIFACT_NAME="lambda-function-${CODEBUILD_RESOLVED_SOURCE_VERSION}.jar"
-      - mv target/*.jar $ARTIFACT_NAME
-      - aws s3 cp $ARTIFACT_NAME s3://${S3_BUCKET}/${ARTIFACT_NAME}
-      - echo "Lambda artifact uploaded to S3"
-      
-      # Deployment Config für Pipeline
+      - echo "Building Lambda functions..."
       - |
-        cat > deploy-config.json <<EOF
-        {
-          "s3Bucket": "${S3_BUCKET}",
-          "s3Key": "${ARTIFACT_NAME}",
-          "functionName": "${LAMBDA_FUNCTION_NAME}"
-        }
-        EOF
+        # Erstelle JSON-Metadaten für alle Lambda-Funktionen
+        echo '{"functions":[]}' > lambda-functions.json
+        
+        # Beispiel: Finde alle pom.xml oder build.gradle in Unterordnern
+        for dir in */; do
+          if [ -f "${dir}pom.xml" ]; then
+            echo "Building Maven project in $dir"
+            cd $dir
+            mvn clean package -DskipTests
+            
+            # Finde das JAR
+            JAR_FILE=$(find target -name "*.jar" -not -name "*-sources.jar" | head -1)
+            if [ -n "$JAR_FILE" ]; then
+              FUNCTION_NAME=$(basename $dir)
+              S3_KEY="${FUNCTION_NAME}-${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}.jar"
+              
+              # Upload zu S3
+              aws s3 cp $JAR_FILE s3://$LAMBDA_BUCKET/$S3_KEY
+              
+              # Füge Metadaten hinzu
+              cd ..
+              jq ".functions += [{\"name\":\"$FUNCTION_NAME\",\"s3Key\":\"$S3_KEY\",\"handler\":\"com.example.Handler\",\"runtime\":\"java17\",\"roleArn\":\"arn:aws:iam::${AWS_ACCOUNT_ID}:role/lambda-execution-role\"}]" lambda-functions.json > tmp.json && mv tmp.json lambda-functions.json
+            fi
+            cd ..
+          fi
+        done
+        
+        # Upload Metadaten
+        aws s3 cp lambda-functions.json s3://$LAMBDA_BUCKET/lambda-functions.json
+        
+        echo "Build completed"
 
 artifacts:
   files:
-    - deploy-config.json
-  name: LambdaBuildArtifact
-
-cache:
-  paths:
-    - '/root/.m2/**/*'
+    - lambda-functions.json

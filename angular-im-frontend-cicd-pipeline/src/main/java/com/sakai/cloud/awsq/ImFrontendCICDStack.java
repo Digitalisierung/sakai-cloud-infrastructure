@@ -1,6 +1,5 @@
-package com.sakai.cloud.infra;
+package com.sakai.cloud.awsq;
 
-import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.codebuild.CfnProject;

@@ -65,7 +65,17 @@ Resources:
               - logs:CreateLogStream
               - logs:PutLogEvents
             Effect: Allow
-            Resource: arn:aws:logs:eu-central-1:315735600242:*
+            Resource:
+              - arn:aws:logs:eu-central-1:315735600242:*
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/
+                    - Ref: ImFrontendBuildProjectId1DC23BA5
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/
+                    - Ref: ImFrontendBuildProjectId1DC23BA5
           - Action:
               - s3:GetBucketLocation
               - s3:ListBucket
@@ -120,6 +130,27 @@ Resources:
                         - ImFrontendArtifactBucketId09564F13
                         - Arn
                     - /*
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ImFrontendBuildLogGroup1576F696
+                - Arn
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:codebuild:eu-central-1:315735600242:report-group/
+                  - Ref: ImFrontendBuildProjectId1DC23BA5
+                  - -*
         Version: "2012-10-17"
       PolicyName: ImFrontendCodeBuildRoleIDDefaultPolicy2C7BB9EA
       Roles:
@@ -134,80 +165,6 @@ Resources:
     DeletionPolicy: Retain
     Metadata:
       aws:cdk:path: ImFrontendCICDStackL2/ImFrontendBuildLogGroup/Resource
-  ImFrontendBuildProjectIdRole185C4CAD:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-          - Action: sts:AssumeRole
-            Effect: Allow
-            Principal:
-              Service: codebuild.amazonaws.com
-        Version: "2012-10-17"
-    Metadata:
-      aws:cdk:path: ImFrontendCICDStackL2/ImFrontendBuildProjectId/Role/Resource
-  ImFrontendBuildProjectIdRoleDefaultPolicyACD9611E:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyDocument:
-        Statement:
-          - Action:
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Effect: Allow
-            Resource:
-              Fn::GetAtt:
-                - ImFrontendBuildLogGroup1576F696
-                - Arn
-          - Action:
-              - logs:CreateLogGroup
-              - logs:CreateLogStream
-              - logs:PutLogEvents
-            Effect: Allow
-            Resource:
-              - Fn::Join:
-                  - ""
-                  - - arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/
-                    - Ref: ImFrontendBuildProjectId1DC23BA5
-                    - :*
-              - Fn::Join:
-                  - ""
-                  - - arn:aws:logs:eu-central-1:315735600242:log-group:/aws/codebuild/
-                    - Ref: ImFrontendBuildProjectId1DC23BA5
-          - Action:
-              - codebuild:BatchPutCodeCoverages
-              - codebuild:BatchPutTestCases
-              - codebuild:CreateReport
-              - codebuild:CreateReportGroup
-              - codebuild:UpdateReport
-            Effect: Allow
-            Resource:
-              Fn::Join:
-                - ""
-                - - arn:aws:codebuild:eu-central-1:315735600242:report-group/
-                  - Ref: ImFrontendBuildProjectId1DC23BA5
-                  - -*
-          - Action:
-              - s3:GetBucket*
-              - s3:GetObject*
-              - s3:List*
-            Effect: Allow
-            Resource:
-              - Fn::GetAtt:
-                  - ImFrontendArtifactBucketId09564F13
-                  - Arn
-              - Fn::Join:
-                  - ""
-                  - - Fn::GetAtt:
-                        - ImFrontendArtifactBucketId09564F13
-                        - Arn
-                    - /*
-        Version: "2012-10-17"
-      PolicyName: ImFrontendBuildProjectIdRoleDefaultPolicyACD9611E
-      Roles:
-        - Ref: ImFrontendBuildProjectIdRole185C4CAD
-    Metadata:
-      aws:cdk:path: ImFrontendCICDStackL2/ImFrontendBuildProjectId/Role/DefaultPolicy/Resource
   ImFrontendBuildProjectId1DC23BA5:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -237,7 +194,7 @@ Resources:
       QueuedTimeoutInMinutes: 480
       ServiceRole:
         Fn::GetAtt:
-          - ImFrontendBuildProjectIdRole185C4CAD
+          - ImFrontendCodeBuildRoleIDDE481469
           - Arn
       Source:
         BuildSpec: buildspec.yaml
@@ -245,6 +202,13 @@ Resources:
         ReportBuildStatus: true
         Type: GITHUB
       TimeoutInMinutes: 20
+      Triggers:
+        FilterGroups:
+          - - Pattern: PUSH
+              Type: EVENT
+            - Pattern: refs/heads/develop
+              Type: HEAD_REF
+        Webhook: true
     Metadata:
       aws:cdk:path: ImFrontendCICDStackL2/ImFrontendBuildProjectId/Resource
   ImFrontendPipelineIdRole4ED0A9EF:
@@ -459,7 +423,7 @@ Resources:
   CDKMetadata:
     Type: AWS::CDK::Metadata
     Properties:
-      Analytics: v2:deflate64:H4sIAAAAAAAA/+1WTW8TMRD9LfWxcpd+HJBy26ZRFZSWKEnhEEWRY0+2br2exR8t0Wr/O/J6d0mgFGipAMEhytrjeTPzPB694+T45CQ53GP39oCL2wMlV0k5dYzfUnZvl6U9ScpTz2/BzUuyUshvx36lJE85B2tJj+wTSkBzsymcRE16ZHqyvEgv0/PBGaFEyTXwDVcw8Qos6c1LwlZo3FBzzAsFDi68crJgxl0VCplI1w5MAytF/VEtKDGQ4x1TY1SSb0iPCLDO4IZQcgfGStQgSM8ZDxUtCRNitB33iWFpvdoni4D586VvJbZmygIl97Cy0sHAGDRnyH0O2jUwjWmoBXzcMVUL2l/reAMVlSxPygkqCAVZ63MQpxvSK0lhpOayYCrlHH0HG88Eh5Q3Oe6TquFohi2d87JafN5sob6yOsf49VArqaGztfw8bnxCsBezGlRwyXLYoeh5NL4UYy9CzpPrpbvU/WvlB+/MMO3SzvzMFv899Pz1BNQTMUSncT/sdg4z/DKvb2wLMXXMQRi0difhF9r+s5L8n80vDFs3ZOzFiirMbFKOMDs36It5SQw40PEVvY5HW2NFOQpYealEUo4N3gAPKsuiNxzC85QieK5lJ01WTGQw9UWBxrWKhxK3KdqRTJh3OAFnNiOZS7ft1smQOuC0AN5JmDtpUEfJUUbzMGdZnUKHTYmANfPK9TEvvINZNJxeDUdny/PB5WCSjo6W04t0NAoaKvgPRauowmrslepGQePdf3s2qBEIJRa4AWcvmGYZmL6BunimWqVloEArHZpNWyv/fibVTnnvmJFsVQvRGlJhlkmdhTq5Qi/eM8evw0o1N9QOPvLBgwcxkzmgb1l1W6taIkotZthHAWNZQJhbsW9C1xgn14y7qOMaYdf0Tbz32AtF45iULcT8QWdKrGNZI6jrz21FU8/sreZ//MBWW2fwAOCPH4iPZWfKxxKbWqqKTiB297zR1tu/RUXfsDv26vgoOUyO926slAfG60BzMon/nwAGaXUYrgwAAA==
+      Analytics: v2:deflate64:H4sIAAAAAAAA/91WW2/TMBT+LZzHyQtje0DqW9ZVU1E3qrbAQzVNrn0azByf4MtGFeW/I8dJ6LgzQFyeEp/P5+rj4+84Oz45yY4e8Tt3KOTNoVabrF56Lm4Yv3PXtTvJ6tMgbtCva9hoEjfzsNFK5EKgczCCA2CARthd5RUZGMHy5Poiv8zPJ2fAQKstip3QuAgaHYzWNfANWT81gspKo8eLoL2quPUvKk1c5luPtjOrZPvTXDGwWNIt13PSSuxgBBKdt7QDBrdonSKDEkbeBmxYDVzK2b7fB7pl7eoArqLNH099L7At1w4Z3OHGKY8Ta8mekQglGt+Z6aCpkfjuHtRcsfHWpBNomOJlVi9IY0zIuVCiPN3BqIbKKiNUxXUuBIXBbNoTFXLRxXgATVejFfXlXNfN1Qdhb+oT1HsuXk+NVgYHrK/P18EHOPv/0AefFwNLGi95id36d5/U35V+1C4sNz4f4J/srT9Tnn++AO0oit5ZkkfpoLCij+P6gljKpece44Rz9wL+B8V/VwH+UDS/ym3bXqmzGqapcFk9o+LcUqjWNVj0aNKdeJq29mDDBEncBKVlVs8tvUERyYqjYAXGy6Zk1Nyq4YXfcFngMlQVWd8TBwZ+V/UDFnjwtEBvdzNVKr+vNrzmrcNlhWJgArfKkkkvd53gacmLNoTBNgOJWx60H1NZBY+rBJy+mM7Ors8nl5NFPntyvbzIZ7NIRaL+VPbEJK7mQevhYnfa4+dnk9YCMHAoLHp3wQ0v0I4ttslz3RMWixU55cnu+lzFtyNp7qX3klvFNy2fa01qKgplipin0BTkK+7F67jS3Qn1YwzeBgwoV6pECn1VbdsZ7a/fA1rSpYxc0ZgkzlWFcSClFooNZL3acuETM+qoUtdCqQVSW1SdYlb3JtafVWbgPC86itr+Du8tA94O47178PUNex1e4GcMfv+GdG/uje+UYpdL07AFpkZfd2x1j7U+47f88fGT7Cg7fvTGKXVog4klzhbp+x4NmzNp/AsAAA==
     Metadata:
       aws:cdk:path: ImFrontendCICDStackL2/CDKMetadata/Default
 Parameters:

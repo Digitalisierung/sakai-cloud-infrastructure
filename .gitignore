@@ -131,3 +131,5 @@ desktop.ini
 *.db
 /angular-im-frontend-cicd-pipeline/cdk.out/
 /cdk.out/
+/lambda-cicd-pipeline/cdk.out/
+/**/cdk.out

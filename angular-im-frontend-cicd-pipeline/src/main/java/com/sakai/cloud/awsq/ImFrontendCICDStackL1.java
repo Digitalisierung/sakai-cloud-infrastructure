@@ -1,4 +1,4 @@
-package com.sakai.cloud.infra;
+package com.sakai.cloud.awsq;
 
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.CfnProject;
