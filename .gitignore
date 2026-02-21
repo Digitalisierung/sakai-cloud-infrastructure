@@ -44,6 +44,7 @@ replay_pid*
 # Build-Folder
 # ----------------------------------------------------------------------
 /target/
+**/target/
 /build/
 /out/
 /bin/
@@ -52,6 +53,7 @@ replay_pid*
 # ----------------------------------------------------------------------
 # Maven
 # ----------------------------------------------------------------------
+/.m2/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup
@@ -91,6 +93,7 @@ gradle-app.setting
 *~.nib
 local.properties
 .loadpath
+*.lst
 
 # ----------------------------------------------------------------------
 # NetBeans
@@ -129,3 +132,7 @@ Thumbs.db
 desktop.ini
 *.ini
 *.db
+/angular-im-frontend-cicd-pipeline/cdk.out/
+/cdk.out/
+/lambda-cicd-pipeline/cdk.out/
+/**/cdk.out
