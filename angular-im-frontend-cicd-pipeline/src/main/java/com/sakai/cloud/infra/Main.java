@@ -1,5 +1,6 @@
 package com.sakai.cloud.infra;
 
+import com.sakai.cloud.youtube.CdkCicdStack;
 import com.sakai.cloud.youtube.PipeLineStack;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
@@ -19,7 +20,7 @@ public class Main {
                 .build();
 
         //new ImFrontendCICDStackL2(app, "ImFrontendCICDStackL2", stackProps);
-        new PipeLineStack(app, "YoutubeTutorialId", stackProps);
+        new CdkCicdStack(app, "CdkCiCdStackId", stackProps);
         app.synth();
     }
 }
