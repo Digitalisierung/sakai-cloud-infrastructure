@@ -20,12 +20,7 @@ public class SakaiInfrastructureApp {
                 .env(env)
                 .build();
 
-        String context = (String) app.getNode().tryGetContext("stage");
-        if (context == null) {
-            context = "dev";
-        }
-
-        Stack sakaiInfraStack = new Stack(app, "SakaiInfraStack-" + context, stackProps);
+        InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
         app.synth();
     }
 }

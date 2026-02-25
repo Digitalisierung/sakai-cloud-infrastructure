@@ -144,3 +144,4 @@ Thumbs.db
 desktop.ini
 *.ini
 *.db
+/sakai-aws-infrastructure/template.yaml
