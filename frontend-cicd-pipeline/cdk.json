@@ -1,5 +1,5 @@
 {
-  "app": "mvn -e -q compile exec:java -Dexec.mainClass=com.sakai.cloud.awsq.LambdaCICDApp",
+  "app": "mvn -e clean compile exec:java",
   "watch": {
     "include": [
       "src/**/*.java"
@@ -8,12 +8,12 @@
       "src/test",
       "src/test/**/*",
       "target",
-      "target/**/*",
+      "traget/**/*",
       "cdk.out",
       "cdk.out/**/*",
+      "cdk*.json",
       "pom.xml",
-      "README.md",
-      "cdk*.json"
+      "README.md"
     ]
   },
   "context": {
