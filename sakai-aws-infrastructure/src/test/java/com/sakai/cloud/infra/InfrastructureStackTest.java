@@ -5,6 +5,9 @@ import software.amazon.awscdk.App;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.assertions.Template;
 
+import java.util.List;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class InfrastructureStackTest {
@@ -17,6 +20,34 @@ class InfrastructureStackTest {
 
         InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
         Template template = Template.fromStack(stack);
-        template.resourceCountIs("AWS::DynamoDB::Table", 0);
+
+        // Prüfen, dass genau eine DynamoDB-Tabelle definiert wurde.
+        template.resourceCountIs("AWS::DynamoDB::Table", 1);
+
+        // Prüfen der Tabelleneigenschaften.
+        template.hasResourceProperties("AWS::DynamoDB::Table", Map.of(
+                        "KeySchema", List.of(
+                                Map.of(
+                                        "AttributeName", "partitionKey",
+                                        "KeyType", "HASH"
+                                ),
+                                Map.of(
+                                        "AttributeName", "sortKey",
+                                        "KeyType", "RANGE"
+                                )
+                        ),
+                        "AttributeDefinitions", List.of(
+                                Map.of(
+                                        "AttributeName", "partitionKey",
+                                        "AttributeType", "S"
+                                ),
+                                Map.of(
+                                        "AttributeName", "sortKey",
+                                        "AttributeType", "S"
+                                )
+                        ),
+                        "BillingMode", "PAY_PER_REQUEST"
+                )
+        );
     }
 }
