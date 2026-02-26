@@ -1,18 +1,72 @@
 package com.sakai.cloud.infra;
 
+import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.dynamodb.*;
+import software.amazon.awscdk.services.iam.*;
+import software.amazon.awscdk.services.lambda.*;
+import software.amazon.awscdk.services.lambda.Runtime;
+import software.amazon.awscdk.services.s3.Bucket;
+import software.amazon.awscdk.services.s3.IBucket;
 import software.constructs.Construct;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class InfrastructureStack extends Stack {
-    private final Table inventoryTable;
+    private final String ARTIFACT_BUCKET_NAME;
+    private final String ARTIFACT_OBJECT_KEY;
+    private final Table INVENTORY_TABLE;
 
     public InfrastructureStack(Construct scope, String id, StackProps props) {
         super(scope, id, props);
 
         String stage = (String) this.getNode().tryGetContext("stage");
+
+        ARTIFACT_BUCKET_NAME = (String) this.getNode().tryGetContext("artifactBucketName");
+        if (ARTIFACT_BUCKET_NAME == null) throw new RuntimeException("Artifact Bucket Name is not defined");
+        ARTIFACT_OBJECT_KEY = (String) this.getNode().tryGetContext("artifactObjectKey");
+        if (ARTIFACT_OBJECT_KEY == null) throw new RuntimeException("Artifact Object Key is not defined");
+
+        // DynamoDB Table
+        INVENTORY_TABLE = createDynamoDbTable(stage);
+
+        // S3 Artifact Bucket
+        IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", ARTIFACT_BUCKET_NAME);
+
+        // Lambda Function Role
+        RoleProps lambdaRoleProps = RoleProps.builder()
+                .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
+                .managedPolicies(List.of(
+                        ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
+                ))
+                .build();
+
+        Role lambdaExecRole = new Role(this, "LambdaExecutionRoleId", lambdaRoleProps);
+        INVENTORY_TABLE.grantReadData(lambdaExecRole);
+
+        // === Function for ListArticles Handler ===
+        Map<String, String> envVars = new HashMap<>();
+        envVars.put("TABLE_NAME", INVENTORY_TABLE.getTableName());
+
+        FunctionProps laFuncProps = FunctionProps.builder()
+                .runtime(Runtime.JAVA_21)
+                .memorySize(1024)
+                .handler("com.sakai.inventory.api.handler.ListArticlesHandler::handleRequest")
+                .architecture(Architecture.X86_64)
+                .timeout(Duration.seconds(30))
+                .environment(envVars)
+                .role(lambdaExecRole)
+                .code(Code.fromBucket(artifactBucket, ARTIFACT_OBJECT_KEY))
+                .build();
+
+        Function listArticlesHandler = new Function(this, "ListArticlesHandlerFunction", laFuncProps);
+    }
+
+    private Table createDynamoDbTable(String stage) {
 
         TableProps inventoryTableProps = TableProps.builder()
                 .partitionKey(Attribute.builder()
@@ -30,7 +84,7 @@ public class InfrastructureStack extends Stack {
                         .build())
                 .build();
 
-        this.inventoryTable = new Table(this, "InventoryTableId", inventoryTableProps);
+        return new Table(this, "InventoryTableId", inventoryTableProps);
     }
 
     private RemovalPolicy determinateRemovalPolicy(String stage) {
@@ -46,6 +100,6 @@ public class InfrastructureStack extends Stack {
     }
 
     public Table getInventoryTable() {
-        return inventoryTable;
+        return INVENTORY_TABLE;
     }
 }
