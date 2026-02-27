@@ -46,7 +46,7 @@ public class InfrastructureStack extends Stack {
         // === Function for ListArticles Handler ===
         Function listArticlesHandler = createLambdaFunction(lambdaExecRole, artifactBucket);
 
-        LambdaRestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
+        RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
     }
 
     private Table createDynamoDbTable(String stage) {
@@ -99,7 +99,7 @@ public class InfrastructureStack extends Stack {
         return new Function(this, "ListArticlesHandlerFunction", laFuncProps);
     }
 
-    private LambdaRestApi createApiGateway(String stage, Function listArticlesFunction) {
+    private RestApi createApiGateway(String stage, Function listArticlesFunction) {
         StageOptions deployOpt = StageOptions.builder()
                 .stageName("prod")
                 .dataTraceEnabled(!stage.equalsIgnoreCase("prod")) // in prod disabled
@@ -111,14 +111,14 @@ public class InfrastructureStack extends Stack {
                 .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
                 .build();
 
-        LambdaRestApiProps props = LambdaRestApiProps.builder()
+        RestApiProps props = RestApiProps.builder()
                 .restApiName("InventoryRestApiGateway")
                 .description("API for Inventory Management System")
                 .deployOptions(deployOpt)
                 .defaultCorsPreflightOptions(corsOpt)
                 .build();
 
-        LambdaRestApi restApi = new LambdaRestApi(this, "RestApiGateway", props);
+        RestApi restApi = new RestApi(this, "RestApiGateway", props);
 
         // define `/articles` resource
         IResource listArticlesResource = restApi.getRoot().addResource("articles");
