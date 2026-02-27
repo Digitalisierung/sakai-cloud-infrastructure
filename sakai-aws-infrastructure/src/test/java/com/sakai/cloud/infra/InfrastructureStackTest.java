@@ -8,9 +8,28 @@ import software.amazon.awscdk.assertions.Template;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 class InfrastructureStackTest {
+    @Test
+    void test_LambdaExecRole() {
+        App app = new App();
+        StackProps props = StackProps.builder()
+                .stackName("TestStack")
+                .build();
+
+        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", props);
+        Template template = Template.fromStack(stack);
+
+        // Anzahl Ressourcen im Template
+        template.resourceCountIs("AWS::IAM::Role", 1);
+
+        // Prüfen, dass die Lambda-Rolle die BasicExecution-Policy enthält
+        template.hasResourceProperties("AWS::IAM::Role", Map.of(
+                "ManagedPolicyArns", List.of(Map.of(
+                        "Fn::Join", List.of("", List.of("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"))
+                ))
+        ));
+    }
+
     @Test
     void test_createApiGateway() {
         App app = new App();

@@ -6,8 +6,10 @@ import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.apigateway.*;
 import software.amazon.awscdk.services.dynamodb.*;
-import software.amazon.awscdk.services.events.targets.ApiGatewayProps;
-import software.amazon.awscdk.services.iam.*;
+import software.amazon.awscdk.services.iam.ManagedPolicy;
+import software.amazon.awscdk.services.iam.Role;
+import software.amazon.awscdk.services.iam.RoleProps;
+import software.amazon.awscdk.services.iam.ServicePrincipal;
 import software.amazon.awscdk.services.lambda.*;
 import software.amazon.awscdk.services.lambda.Runtime;
 import software.amazon.awscdk.services.s3.Bucket;
@@ -103,6 +105,7 @@ public class InfrastructureStack extends Stack {
         StageOptions deployOpt = StageOptions.builder()
                 .stageName("prod")
                 .dataTraceEnabled(!stage.equalsIgnoreCase("prod")) // in prod disabled
+                .loggingLevel(MethodLoggingLevel.ERROR)
                 .build();
 
         CorsOptions corsOpt = CorsOptions.builder()
