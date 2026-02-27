@@ -4,7 +4,9 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.services.apigateway.*;
 import software.amazon.awscdk.services.dynamodb.*;
+import software.amazon.awscdk.services.events.targets.ApiGatewayProps;
 import software.amazon.awscdk.services.iam.*;
 import software.amazon.awscdk.services.lambda.*;
 import software.amazon.awscdk.services.lambda.Runtime;
@@ -43,6 +45,8 @@ public class InfrastructureStack extends Stack {
 
         // === Function for ListArticles Handler ===
         Function listArticlesHandler = createLambdaFunction(lambdaExecRole, artifactBucket);
+
+        RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
     }
 
     private Table createDynamoDbTable(String stage) {
@@ -93,6 +97,40 @@ public class InfrastructureStack extends Stack {
                 .build();
 
         return new Function(this, "ListArticlesHandlerFunction", laFuncProps);
+    }
+
+    private RestApi createApiGateway(String stage, Function listArticlesFunction) {
+        StageOptions deployOpt = StageOptions.builder()
+                .stageName("prod")
+                .dataTraceEnabled(!stage.equalsIgnoreCase("prod")) // in prod disabled
+                .build();
+
+        CorsOptions corsOpt = CorsOptions.builder()
+                .allowOrigins(Cors.ALL_ORIGINS) // for dev allow all origins. Must be changed in prod.
+                .allowMethods(Cors.ALL_METHODS)
+                .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
+                .build();
+
+        RestApiProps props = RestApiProps.builder()
+                .restApiName("InventoryRestApiGateway")
+                .description("API for Inventory Management System")
+                .deployOptions(deployOpt)
+                .defaultCorsPreflightOptions(corsOpt)
+                .build();
+
+        RestApi restApi = new RestApi(this, "RestApiGateway", props);
+
+        // define `/articles` resource
+        IResource listArticlesResource = restApi.getRoot().addResource("articles");
+        listArticlesResource.addMethod("GET", new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
+                .proxy(true)
+                .build()));
+
+        // define `/articles/{id}` resource
+        // define `/catalogs` resource
+        // define `/catalogs/{id}/articles` resource
+
+        return restApi;
     }
 
     private RemovalPolicy determinateRemovalPolicy(String stage) {

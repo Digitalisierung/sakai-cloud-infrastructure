@@ -12,6 +12,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class InfrastructureStackTest {
     @Test
+    void test_createApiGateway() {
+        App app = new App();
+        StackProps stackProps = StackProps.builder()
+                .stackName("TestStack")
+                .build();
+
+        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
+        Template template = Template.fromStack(stack);
+
+        template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
+    }
+
+    @Test
     void testStack() {
         App app = new App();
         StackProps stackProps = StackProps.builder()
