@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 public class InfrastructureStack extends Stack {
-    private final String ARTIFACT_BUCKET_NAME;
-    private final String ARTIFACT_OBJECT_KEY;
+    private String ArtifactBucketName;
+    private String ArtifactObjectKey;
     private final Table INVENTORY_TABLE;
 
     public InfrastructureStack(Construct app, String id, StackProps props) {
@@ -30,16 +30,18 @@ public class InfrastructureStack extends Stack {
 
         String stage = (String) this.getNode().tryGetContext("stage");
 
-        ARTIFACT_BUCKET_NAME = (String) this.getNode().tryGetContext("artifactBucketName");
-        if (ARTIFACT_BUCKET_NAME == null) throw new RuntimeException("Artifact Bucket Name is not defined");
-        ARTIFACT_OBJECT_KEY = (String) this.getNode().tryGetContext("artifactObjectKey");
-        if (ARTIFACT_OBJECT_KEY == null) throw new RuntimeException("Artifact Object Key is not defined");
+        ArtifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
+        if (ArtifactBucketName == null)
+            ArtifactBucketName = "sakai-lambda-artifacts"; // throw new RuntimeException("Artifact Bucket Name is not defined");
+        ArtifactObjectKey = (String) this.getNode().tryGetContext("artifactObjectKey");
+        if (ArtifactObjectKey == null)
+            ArtifactObjectKey = "asset-service-1.0-SNAPSHOT.jar"; // throw new RuntimeException("Artifact Object Key is not defined");
 
         // === DynamoDB Table ===
         INVENTORY_TABLE = createDynamoDbTable(stage);
 
         // S3 Artifact Bucket
-        IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", ARTIFACT_BUCKET_NAME);
+        IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", ArtifactBucketName);
 
         // === Lambda Function Role ===
         Role lambdaExecRole = createLambdaExecRole();
@@ -95,7 +97,7 @@ public class InfrastructureStack extends Stack {
                 .timeout(Duration.seconds(30))
                 .environment(envVars)
                 .role(lambdaExecRole)
-                .code(Code.fromBucket(artifactBucket, ARTIFACT_OBJECT_KEY))
+                .code(Code.fromBucket(artifactBucket, ArtifactObjectKey))
                 .build();
 
         return new Function(this, "ListArticlesHandlerFunction", laFuncProps);
@@ -119,6 +121,7 @@ public class InfrastructureStack extends Stack {
                 .description("API for Inventory Management System")
                 .deployOptions(deployOpt)
                 .defaultCorsPreflightOptions(corsOpt)
+                .cloudWatchRole(true)
                 .build();
 
         RestApi restApi = new RestApi(this, "RestApiGateway", props);
