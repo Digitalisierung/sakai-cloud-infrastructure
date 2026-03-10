@@ -2,7 +2,6 @@ package com.sakai.cloud.infra;
 
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
-import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 
 public class SakaiInfrastructureApp {
@@ -21,6 +20,7 @@ public class SakaiInfrastructureApp {
                 .build();
 
         InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
+        sakaiInfraStack.initializeStack();
         app.synth();
     }
 }

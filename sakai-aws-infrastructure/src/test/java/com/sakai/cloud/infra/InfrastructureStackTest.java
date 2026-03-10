@@ -11,46 +11,74 @@ import java.util.Map;
 class InfrastructureStackTest {
     @Test
     void test_LambdaExecRole() {
-        App app = new App();
+        App app = App.Builder.create()
+                .postCliContext(Map.of(
+                        "stage", "TEST",
+                        "artifactBucketName", "test-bucket-name",
+                        "artifactObjectKey", "test-object-key"
+                ))
+                .build();
+
         StackProps props = StackProps.builder()
                 .stackName("TestStack")
                 .build();
 
         InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", props);
+        stack.initializeStack();
+
         Template template = Template.fromStack(stack);
 
         // Anzahl Ressourcen im Template
-        template.resourceCountIs("AWS::IAM::Role", 1);
+        template.resourceCountIs("AWS::IAM::Role", 2);
 
         // Prüfen, dass die Lambda-Rolle die BasicExecution-Policy enthält
         template.hasResourceProperties("AWS::IAM::Role", Map.of(
                 "ManagedPolicyArns", List.of(Map.of(
-                        "Fn::Join", List.of("", List.of("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"))
+                        "Fn::Join", List.of("", List.of(
+                                "arn:",
+                                Map.of("Ref", "AWS::Partition"),
+                                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+                        ))
                 ))
         ));
     }
 
     @Test
     void test_createApiGateway() {
-        App app = new App();
+        App app = App.Builder.create()
+                .postCliContext(Map.of(
+                        "stage", "TEST",
+                        "artifactBucketName", "test-bucket-name",
+                        "artifactObjectKey", "test-object-key"))
+                .build();
+
         StackProps stackProps = StackProps.builder()
                 .stackName("TestStack")
                 .build();
 
         InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
-        Template template = Template.fromStack(stack);
+        stack.initializeStack();
 
+        Template template = Template.fromStack(stack);
         template.resourceCountIs("AWS::ApiGateway::RestApi", 1);
     }
 
     @Test
     void testStack() {
-        App app = new App();
+        App app = App.Builder.create()
+                .postCliContext(Map.of(
+                        "stage", "TEST",
+                        "artifactBucketName", "test-bucket-name",
+                        "artifactObjectKey", "test-object-key"))
+                .build();
+
         StackProps stackProps = StackProps.builder()
                 .stackName("TestStack")
                 .build();
 
         InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
+        stack.initializeStack();
+
         Template template = Template.fromStack(stack);
 
         // Prüfen, dass genau eine DynamoDB-Tabelle definiert wurde.

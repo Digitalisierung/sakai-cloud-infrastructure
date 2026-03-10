@@ -21,31 +21,36 @@ import java.util.List;
 import java.util.Map;
 
 public class InfrastructureStack extends Stack {
-    private String ArtifactBucketName;
-    private String ArtifactObjectKey;
-    private final Table INVENTORY_TABLE;
+    // sakai-lambda-artifacts
+    private String artifactBucketName;
+    // asset-service-1.0-SNAPSHOT.jar
+    private String artifactObjectKey;
+    private Table inventoryTable;
+    // DEV, TEST, PROD, etc.
+    private String stage;
 
     public InfrastructureStack(Construct app, String id, StackProps props) {
         super(app, id, props);
+    }
 
-        String stage = (String) this.getNode().tryGetContext("stage");
+    public void initializeStack() {
+        stage = (String) this.getNode().tryGetContext("stage");
+        if (stage == null) throw new RuntimeException("Stage is not defined");
 
-        ArtifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
-        if (ArtifactBucketName == null)
-            ArtifactBucketName = "sakai-lambda-artifacts"; // throw new RuntimeException("Artifact Bucket Name is not defined");
-        ArtifactObjectKey = (String) this.getNode().tryGetContext("artifactObjectKey");
-        if (ArtifactObjectKey == null)
-            ArtifactObjectKey = "asset-service-1.0-SNAPSHOT.jar"; // throw new RuntimeException("Artifact Object Key is not defined");
+        artifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
+        if (artifactBucketName == null) throw new RuntimeException("Artifact Bucket Name is not defined");
+        artifactObjectKey = (String) this.getNode().tryGetContext("artifactObjectKey");
+        if (artifactObjectKey == null) throw new RuntimeException("Artifact Object Key is not defined");
 
         // === DynamoDB Table ===
-        INVENTORY_TABLE = createDynamoDbTable(stage);
+        inventoryTable = createDynamoDbTable(stage);
 
         // S3 Artifact Bucket
-        IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", ArtifactBucketName);
+        IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
 
         // === Lambda Function Role ===
         Role lambdaExecRole = createLambdaExecRole();
-        INVENTORY_TABLE.grantReadData(lambdaExecRole);
+        inventoryTable.grantReadData(lambdaExecRole);
 
         // === Function for ListArticles Handler ===
         Function listArticlesHandler = createLambdaFunction(lambdaExecRole, artifactBucket);
@@ -87,7 +92,7 @@ public class InfrastructureStack extends Stack {
 
     private Function createLambdaFunction(Role lambdaExecRole, IBucket artifactBucket) {
         Map<String, String> envVars = new HashMap<>();
-        envVars.put("TABLE_NAME", INVENTORY_TABLE.getTableName());
+        envVars.put("TABLE_NAME", inventoryTable.getTableName());
 
         FunctionProps laFuncProps = FunctionProps.builder()
                 .runtime(Runtime.JAVA_21)
@@ -97,7 +102,7 @@ public class InfrastructureStack extends Stack {
                 .timeout(Duration.seconds(30))
                 .environment(envVars)
                 .role(lambdaExecRole)
-                .code(Code.fromBucket(artifactBucket, ArtifactObjectKey))
+                .code(Code.fromBucket(artifactBucket, artifactObjectKey))
                 .build();
 
         return new Function(this, "ListArticlesHandlerFunction", laFuncProps);
@@ -140,7 +145,7 @@ public class InfrastructureStack extends Stack {
     }
 
     private RemovalPolicy determinateRemovalPolicy(String stage) {
-        if (stage != null && stage.equals("prod")) {
+        if (stage != null && stage.equalsIgnoreCase("prod")) {
             return RemovalPolicy.RETAIN;
         }
 
@@ -148,10 +153,22 @@ public class InfrastructureStack extends Stack {
     }
 
     private Boolean determinatePitr(String stage) {
-        return stage != null && stage.equals("prod");
+        return stage != null && stage.equalsIgnoreCase("prod");
     }
 
     public Table getInventoryTable() {
-        return INVENTORY_TABLE;
+        return inventoryTable;
+    }
+
+    public void setArtifactBucketName(String artifactBucketName) {
+        this.artifactBucketName = artifactBucketName;
+    }
+
+    public void setArtifactObjectKey(String artifactObjectKey) {
+        this.artifactObjectKey = artifactObjectKey;
+    }
+
+    public void setStage(String stage) {
+        this.stage = stage;
     }
 }
