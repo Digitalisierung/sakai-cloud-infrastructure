@@ -7,6 +7,9 @@ import software.amazon.awscdk.services.codebuild.*;
 import software.amazon.awscdk.services.codepipeline.Artifact;
 import software.amazon.awscdk.services.codepipeline.Pipeline;
 import software.amazon.awscdk.services.codepipeline.PipelineProps;
+import software.amazon.awscdk.services.codepipeline.StageProps;
+import software.amazon.awscdk.services.codepipeline.actions.CodeBuildAction;
+import software.amazon.awscdk.services.codepipeline.actions.CodeStarConnectionsSourceAction;
 import software.amazon.awscdk.services.iam.*;
 import software.constructs.Construct;
 
@@ -67,11 +70,40 @@ public class PipelineStack extends Stack {
         pipelineProject.getRole().addToPrincipalPolicy(policyStatement);
 
         // === Pipeline ===
-        PipelineProps pipelineProps = PipelineProps.builder().build();
+        StageProps sourceStage = StageProps.builder()
+                .stageName("SOURCE")
+                .actions(List.of(
+                        CodeStarConnectionsSourceAction.Builder.create()
+                                .actionName("GitHub_SourceAction")
+                                .owner(repoOwner)
+                                .repo(repoName)
+                                .branch(branchName)
+                                .connectionArn(connectionId)
+                                .output(sourceOutput)
+                                .build()
+                ))
+                .build();
+
+        StageProps buildStage = StageProps.builder()
+                .stageName("BUILD")
+                .actions(List.of(
+                        CodeBuildAction.Builder.create()
+                                .actionName("BuildAndDeployAction")
+                                .project(pipelineProject)
+                                .input(sourceOutput)
+                                .build()
+                ))
+                .build();
+
+        PipelineProps pipelineProps = PipelineProps.builder()
+                .stages(List.of(sourceStage, buildStage))
+                .build();
 
         Pipeline pipeline = new Pipeline(this, "BackedPipelineId", pipelineProps);
 
 
 //        software.amazon.awscdk.pipelines.CodePipeline codePipeline;
+        // Outputs
+        // Pipeline-URL etc. können optional ausgegeben werden
     }
 }
