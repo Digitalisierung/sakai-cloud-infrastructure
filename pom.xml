@@ -15,6 +15,7 @@
         <module>lambda-s3-build-pipeline</module>
         <module>sakai-aws-infrastructure</module>
         <module>frontend-cicd-pipeline</module>
+        <module>backend-cicd-pipeline</module>
     </modules>
 
     <properties>
