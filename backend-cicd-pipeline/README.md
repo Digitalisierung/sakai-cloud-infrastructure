@@ -1,3 +1,4 @@
+```java
 package com.sakai.cloud.infra.pipeline;
 
 import software.amazon.awscdk.Duration;
@@ -16,10 +17,10 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
-public class PipelineStack extends Stack {
+public class BackendPipelineStack extends Stack {
     private final String connectionId = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
 
-    public PipelineStack(Construct app, String id, StackProps props) {
+    public BackendPipelineStack(Construct app, String id, StackProps props) {
         super(app, "PipelineStackId", props);
 
         // Konfiguration aus Context oder Umgebungsvariablen
@@ -61,13 +62,48 @@ public class PipelineStack extends Stack {
         PipelineProject pipelineProject = new PipelineProject(this, "BuildAndDeployProjectId", pipeLineProjectProps);
 
         // CodeBuild benötigt erweiterte Rechte für CDK-Deployment
-        PolicyStatement policyStatement = PolicyStatement.Builder.create()
+        // CloudFormation Berechtigungen
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
-                .actions(List.of("cloudformation:*", "s3:*", "iam:*", "codestar-connections:*", "lambda:*", "apigateway:*", "dynamodb:*", "logs:*"))
-                .resources(List.of("*"))
-                .build();
+                .actions(List.of("cloudformation:*"))
+                .resources(List.of("arn:aws:cloudformation:*:*:stack/InfrastructureStack*/*"))
+                .build());
 
-        pipelineProject.getRole().addToPrincipalPolicy(policyStatement);
+        // IAM Berechtigungen (eingeschränkt auf Stack-Ressourcen)
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("iam:GetRole", "iam:CreateRole", "iam:DeleteRole", "iam:PutRolePolicy",
+                        "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:DeleteRolePolicy", "iam:PassRole"))
+                .resources(List.of("arn:aws:iam::*:role/InfrastructureStack*"))
+                .build());
+
+        // S3 Berechtigungen (für CDK Assets)
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("s3:*"))
+                .resources(List.of("arn:aws:s3:::cdk-*", "arn:aws:s3:::cdk-*/*"))
+                .build());
+
+        // Lambda, API Gateway, DynamoDB Berechtigungen
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("lambda:*", "apigateway:*", "dynamodb:*"))
+                .resources(List.of("*"))
+                .build());
+
+        // CloudWatch Logs (für Lambda und API Gateway)
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents", "logs:DescribeLogGroups"))
+                .resources(List.of("*"))
+                .build());
+
+        // SSM Parameter (falls CDK Bootstrap verwendet)
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("ssm:GetParameter"))
+                .resources(List.of("arn:aws:ssm:*:*:parameter/cdk-bootstrap/*"))
+                .build());
 
         // === Pipeline ===
         StageProps sourceStage = StageProps.builder()
@@ -101,9 +137,13 @@ public class PipelineStack extends Stack {
 
         Pipeline pipeline = new Pipeline(this, "BackedPipelineId", pipelineProps);
 
+        // Pipeline Artifact Bucket Zugriff für CodeBuild
+        pipeline.getArtifactBucket().grantReadWrite(pipelineProjectRole);
+
 
 //        software.amazon.awscdk.pipelines.CodePipeline codePipeline;
-        // Outputs
-        // Pipeline-URL etc. können optional ausgegeben werden
+// Outputs
+// Pipeline-URL etc. können optional ausgegeben werden
     }
 }
+```
