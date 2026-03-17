@@ -70,7 +70,7 @@ public class BackendPipelineStack extends Stack {
         pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
                 .actions(List.of("cloudformation:*"))
-                .resources(List.of("arn:aws:cloudformation:*:*:stack/InfrastructureStack/*"))
+                .resources(List.of("arn:aws:cloudformation:*:*:stack/*/*"))
                 .build());
 
         // IAM Berechtigungen (Eingeschränkt auf Stack-Ressourcen)
@@ -86,7 +86,7 @@ public class BackendPipelineStack extends Stack {
                         "iam:DeleteRolePolicy",
                         "iam:PassRole"
                 ))
-                .resources(List.of("arn:aws:iam::*:role/InfrastructureStack"))
+                .resources(List.of("arn:aws:iam::*:role/*"))
                 .build());
 
         // S3 Berechtigungen (für CDK Assets)
@@ -120,6 +120,13 @@ public class BackendPipelineStack extends Stack {
                 .effect(Effect.ALLOW)
                 .actions(List.of("ssm:GetParameter"))
                 .resources(List.of("arn:aws:ssm:*:*:parameter/cdk-bootstrap/*"))
+                .build());
+
+        // CDK Bootstrap Rollen AssumeRole
+        pipelineProjectRole.addToPolicy(PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("sts:AssumeRole"))
+                .resources(List.of("arn:aws:iam::*:role/cdk-*"))
                 .build());
 
         // CodeStar Connection Berechtigung
