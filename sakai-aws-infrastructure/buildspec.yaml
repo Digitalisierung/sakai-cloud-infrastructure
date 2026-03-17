@@ -4,9 +4,9 @@ phases:
     runtime-versions:
       java: corretto21
     commands:
-      - echo: ###########################
-      - echo: Installing AWS CDK
-      - echo: ###########################
+      - echo "###########################"
+      - echo "Installing AWS CDK"
+      - echo "###########################"
       - npm install -g aws-cdk
       - cdk --version
   pre_build:
