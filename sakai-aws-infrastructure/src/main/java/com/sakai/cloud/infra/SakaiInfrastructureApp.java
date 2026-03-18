@@ -16,6 +16,7 @@ public class SakaiInfrastructureApp {
                 .build();
 
         StackProps stackProps = StackProps.builder()
+                .description("Backend-Infrastruktur (APIGateway, Lambda, DynamoDB) für SAKAI Khachi — ein Inventory Management System.")
                 .env(env)
                 .build();
 

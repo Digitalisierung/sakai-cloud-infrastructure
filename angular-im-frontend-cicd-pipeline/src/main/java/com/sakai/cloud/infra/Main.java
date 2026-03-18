@@ -1,7 +1,5 @@
 package com.sakai.cloud.infra;
 
-import com.sakai.cloud.youtube.CdkCicdStack;
-import com.sakai.cloud.youtube.PipeLineStack;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
@@ -19,8 +17,8 @@ public class Main {
                 .env(env)
                 .build();
 
-        //new ImFrontendCICDStackL2(app, "ImFrontendCICDStackL2", stackProps);
-        new CdkCicdStack(app, "CdkCiCdStackId", stackProps);
+        new ImFrontendCICDStackL2(app, "ImFrontendCICDStackL2", stackProps);
+        //new CdkCicdStack(app, "CdkCiCdStackId", stackProps);
         app.synth();
     }
 }
