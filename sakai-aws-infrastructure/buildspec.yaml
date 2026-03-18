@@ -15,10 +15,6 @@ phases:
     commands:
       - echo "deploying CloudFormation Stack to DEV..."
       - cd sakai-aws-infrastructure
-      - export STAGE_NAME=dev
-      - export STACK_NAME=SakaiInfraStackId
-      - export ARTIFACT_BUCKET=sakai-lambda-artifacts
-      - export OBJECT_KEY=asset-service-1.0-SNAPSHOT.jar
       - cdk deploy ${STACK_NAME} --context stage=${STAGE_NAME} --context artifactBucketName=${ARTIFACT_BUCKET} --context artifactObjectKey=${OBJECT_KEY} --require-approval never
 artifacts:
   files:

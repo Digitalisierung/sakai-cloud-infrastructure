@@ -20,7 +20,7 @@ public class PipelineApp {
                 .env(cdkEnv)
                 .build();
 
-        BackendPipelineStack backendPipelineStack = new BackendPipelineStack(app, "InfrastructureStackId", stackProps);
+        BackendPipelineStack backendPipelineStack = new BackendPipelineStack(app, "BackendPipelineStackId", stackProps);
         backendPipelineStack.initialize();
         app.synth();
     }

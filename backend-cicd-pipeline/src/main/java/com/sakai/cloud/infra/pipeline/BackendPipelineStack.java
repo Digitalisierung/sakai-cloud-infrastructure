@@ -1,5 +1,7 @@
 package com.sakai.cloud.infra.pipeline;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
@@ -18,10 +20,14 @@ import software.amazon.awscdk.services.iam.*;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.constructs.Construct;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class BackendPipelineStack extends Stack {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackendPipelineStack.class);
+
     private static final String CONNECTION_ID = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
     private static final String DEFAULT_REPO_OWNER = "Digitalisierung";
     private static final String DEFAULT_REPO_NAME = "sakai-cloud-infrastructure";
@@ -50,7 +56,7 @@ public class BackendPipelineStack extends Stack {
 
         // === CodeBuild-Projekt für Pipeline ===
         Role codeBuildRole = createCodeBuildRole();
-        PipelineProject codeBuildProject = createCodeBuildProject(codeBuildRole, Map.of());
+        PipelineProject codeBuildProject = createCodeBuildProject(codeBuildRole, populateContextVars());
 
         // === Pipeline (Source + CodeBuild) ===
         Role pipelineRole = createPipelineRole();
@@ -64,7 +70,8 @@ public class BackendPipelineStack extends Stack {
     // TODO: Umgebungsvariable auslesen?
     private String resolveContext(String contextKey) {
         String contextValue = (String) this.getNode().tryGetContext(contextKey);
-        if (contextValue == null) throw new IllegalStateException("Context key '" + contextKey + "' not defined");
+        if (contextValue == null)
+            throw new IllegalStateException("No value found for context key: '" + contextKey + "'");
         return contextValue;
     }
 
@@ -164,6 +171,31 @@ public class BackendPipelineStack extends Stack {
                 .actions(List.of("codestar-connections:UseConnection"))
                 .resources(List.of(CONNECTION_ID))
                 .build());
+    }
+
+    private Map<String, BuildEnvironmentVariable> populateContextVars() {
+        Map<String, BuildEnvironmentVariable> environmentVariables = new HashMap<>();
+        environmentVariables.put("STAGE_NAME", BuildEnvironmentVariable.builder()
+                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                .value("dev")
+                .build());
+
+        environmentVariables.put("STACK_NAME", BuildEnvironmentVariable.builder()
+                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                .value("SakaiInfraStackId")
+                .build());
+
+        environmentVariables.put("ARTIFACT_BUCKET", BuildEnvironmentVariable.builder()
+                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                .value("sakai-lambda-artifacts")
+                .build());
+
+        environmentVariables.put("OBJECT_KEY", BuildEnvironmentVariable.builder()
+                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                .value("asset-service-1.0-SNAPSHOT.jar")
+                .build());
+
+        return environmentVariables;
     }
 
     private PipelineProject createCodeBuildProject(Role codeBuildRole, Map<String, BuildEnvironmentVariable> environmentVariables) {
