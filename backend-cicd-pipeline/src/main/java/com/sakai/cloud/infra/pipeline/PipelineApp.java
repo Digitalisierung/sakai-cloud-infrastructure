@@ -16,10 +16,11 @@ public class PipelineApp {
                 .build();
 
         StackProps stackProps = StackProps.builder()
+                .description("CI/CD-Pipeline für das automatische Deployen von SAKAI-Backend-Infrastruktur.")
                 .env(cdkEnv)
                 .build();
 
-        BackendPipelineStack backendPipelineStack = new BackendPipelineStack(app, "InfrastructureStack", stackProps);
+        BackendPipelineStack backendPipelineStack = new BackendPipelineStack(app, "InfrastructureStackId", stackProps);
         backendPipelineStack.initialize();
         app.synth();
     }

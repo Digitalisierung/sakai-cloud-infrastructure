@@ -59,7 +59,6 @@ public class BackendPipelineStack extends Stack {
 
         Pipeline pipeline = createPipeline(pipelineRole, sourceStage, codeBuildStage);
         pipeline.getArtifactBucket().grantReadWrite(codeBuildRole);
-        pipeline.getArtifactBucket().grantReadWrite(pipelineRole);
     }
 
     // TODO: Umgebungsvariable auslesen?
