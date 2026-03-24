@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class InfrastructureStack extends Stack {
+public class SakaiServiceStack extends Stack {
     // sakai-lambda-artifacts
     private String artifactBucketName;
     // asset-service-1.0-SNAPSHOT.jar
@@ -29,7 +29,7 @@ public class InfrastructureStack extends Stack {
     // DEV, TEST, PROD, etc.
     private String stage;
 
-    public InfrastructureStack(Construct app, String id, StackProps props) {
+    public SakaiServiceStack(Construct app, String id, StackProps props) {
         super(app, id, props);
     }
 

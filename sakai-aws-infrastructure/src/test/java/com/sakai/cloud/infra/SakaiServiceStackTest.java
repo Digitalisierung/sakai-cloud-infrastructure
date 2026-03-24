@@ -8,7 +8,7 @@ import software.amazon.awscdk.assertions.Template;
 import java.util.List;
 import java.util.Map;
 
-class InfrastructureStackTest {
+class SakaiServiceStackTest {
     @Test
     void test_LambdaExecRole() {
         App app = App.Builder.create()
@@ -23,7 +23,7 @@ class InfrastructureStackTest {
                 .stackName("TestStack")
                 .build();
 
-        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", props);
+        SakaiServiceStack stack = new SakaiServiceStack(app, "TestStackId", props);
         stack.initializeStack();
 
         Template template = Template.fromStack(stack);
@@ -56,7 +56,7 @@ class InfrastructureStackTest {
                 .stackName("TestStack")
                 .build();
 
-        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
+        SakaiServiceStack stack = new SakaiServiceStack(app, "TestStackId", stackProps);
         stack.initializeStack();
 
         Template template = Template.fromStack(stack);
@@ -76,7 +76,7 @@ class InfrastructureStackTest {
                 .stackName("TestStack")
                 .build();
 
-        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
+        SakaiServiceStack stack = new SakaiServiceStack(app, "TestStackId", stackProps);
         stack.initializeStack();
 
         Template template = Template.fromStack(stack);

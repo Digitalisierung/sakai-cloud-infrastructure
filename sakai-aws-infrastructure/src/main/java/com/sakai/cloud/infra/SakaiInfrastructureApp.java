@@ -20,8 +20,10 @@ public class SakaiInfrastructureApp {
                 .env(env)
                 .build();
 
-        InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
-        sakaiInfraStack.initializeStack();
+        PipelineStack pipelineStack = new PipelineStack(app, "SakaiPipelineStackId", stackProps);
+
+//        InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
+//        sakaiInfraStack.initializeStack();
         app.synth();
     }
 }
