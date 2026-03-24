@@ -1,5 +1,7 @@
 package com.sakai.cloud.infra;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.RemovalPolicy;
 import software.amazon.awscdk.Stack;
@@ -21,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 public class SakaiServiceStack extends Stack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
+
     // sakai-lambda-artifacts
     private String artifactBucketName;
     // asset-service-1.0-SNAPSHOT.jar
@@ -31,36 +35,43 @@ public class SakaiServiceStack extends Stack {
 
     public SakaiServiceStack(Construct app, String id, StackProps props) {
         super(app, id, props);
-    }
 
-    public void initializeStack() {
         stage = (String) this.getNode().tryGetContext("stage");
+        if (stage == null) stage = System.getenv("STAGE_NAME");
         if (stage == null) throw new RuntimeException("Stage is not defined");
 
         artifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
+        if (artifactBucketName == null) artifactBucketName = System.getenv("ARTIFACT_BUCKET");
         if (artifactBucketName == null) throw new RuntimeException("Artifact Bucket Name is not defined");
+
         artifactObjectKey = (String) this.getNode().tryGetContext("artifactObjectKey");
+        if (artifactObjectKey == null) artifactObjectKey = System.getenv("OBJECT_KEY");
         if (artifactObjectKey == null) throw new RuntimeException("Artifact Object Key is not defined");
+
+        LOGGER.info("Stage: {}, artifactBucketName: {}, artifactObjectKey: {}", stage, artifactBucketName, artifactObjectKey);
+    }
+
+    public void initializeStack() {
 
         // === DynamoDB Table ===
         inventoryTable = createDynamoDbTable(stage);
 
         // S3 Artifact Bucket
-        IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
+        final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
 
         // === Lambda Function Role ===
-        Role lambdaExecRole = createLambdaExecRole();
+        final Role lambdaExecRole = createLambdaExecRole();
         inventoryTable.grantReadData(lambdaExecRole);
 
         // === Function for ListArticles Handler ===
-        Function listArticlesHandler = createLambdaFunction(lambdaExecRole, artifactBucket);
+        final Function listArticlesHandler = createLambdaFunction(lambdaExecRole, artifactBucket);
 
-        RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
+        final RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
     }
 
     private Table createDynamoDbTable(String stage) {
 
-        TableProps inventoryTableProps = TableProps.builder()
+        final TableProps inventoryTableProps = TableProps.builder()
                 .partitionKey(Attribute.builder()
                         .name("partitionKey")
                         .type(AttributeType.STRING)
@@ -80,7 +91,7 @@ public class SakaiServiceStack extends Stack {
     }
 
     private Role createLambdaExecRole() {
-        RoleProps lambdaRoleProps = RoleProps.builder()
+        final RoleProps lambdaRoleProps = RoleProps.builder()
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
@@ -91,10 +102,10 @@ public class SakaiServiceStack extends Stack {
     }
 
     private Function createLambdaFunction(Role lambdaExecRole, IBucket artifactBucket) {
-        Map<String, String> envVars = new HashMap<>();
+        final Map<String, String> envVars = new HashMap<>();
         envVars.put("TABLE_NAME", inventoryTable.getTableName());
 
-        FunctionProps laFuncProps = FunctionProps.builder()
+        final FunctionProps laFuncProps = FunctionProps.builder()
                 .runtime(Runtime.JAVA_21)
                 .memorySize(1024)
                 .handler("com.sakai.inventory.api.handler.ListArticlesHandler::handleRequest")
@@ -109,19 +120,19 @@ public class SakaiServiceStack extends Stack {
     }
 
     private RestApi createApiGateway(String stage, Function listArticlesFunction) {
-        StageOptions deployOpt = StageOptions.builder()
-                .stageName("prod")
-                .dataTraceEnabled(!stage.equalsIgnoreCase("prod")) // in prod disabled
+        final StageOptions deployOpt = StageOptions.builder()
+                .stageName(stage)
+                .dataTraceEnabled(!stage.equalsIgnoreCase("dev")) // in prod disabled
                 .loggingLevel(MethodLoggingLevel.ERROR)
                 .build();
 
-        CorsOptions corsOpt = CorsOptions.builder()
+        final CorsOptions corsOpt = CorsOptions.builder()
                 .allowOrigins(Cors.ALL_ORIGINS) // for dev allow all origins. Must be changed in prod.
                 .allowMethods(Cors.ALL_METHODS)
                 .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
                 .build();
 
-        RestApiProps props = RestApiProps.builder()
+        final RestApiProps props = RestApiProps.builder()
                 .restApiName("InventoryRestApiGateway")
                 .description("API for Inventory Management System")
                 .deployOptions(deployOpt)
@@ -129,10 +140,10 @@ public class SakaiServiceStack extends Stack {
                 .cloudWatchRole(true)
                 .build();
 
-        RestApi restApi = new RestApi(this, "RestApiGateway", props);
+        final RestApi restApi = new RestApi(this, "RestApiGateway", props);
 
         // define `/articles` resource
-        IResource listArticlesResource = restApi.getRoot().addResource("articles");
+        final IResource listArticlesResource = restApi.getRoot().addResource("articles");
         listArticlesResource.addMethod("GET", new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
                 .proxy(true)
                 .build()));

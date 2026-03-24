@@ -1,5 +1,7 @@
 package com.sakai.cloud.infra;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.pipelines.*;
 import software.amazon.awscdk.services.s3.*;
@@ -9,9 +11,38 @@ import java.util.List;
 import java.util.Map;
 
 public class PipelineStack extends Stack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PipelineStack.class);
+
+    private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
+    private static final String BRANCH = "develop";
+
     public PipelineStack(Construct app, String id, StackProps stackProps) {
         super(app, id, stackProps);
 
+        final Environment env = stackProps.getEnv();
+        final String stageName = "Dev";
+
+        if (env == null || env.getAccount() == null || env.getRegion() == null) {
+            throw new RuntimeException("Missing Environment in stackProps.");
+        }
+
+        final Bucket artBucket = createArtifactBucket();
+
+        final CodePipeline codePipeline = createCodePipeline(artBucket);
+
+        LOGGER.info("Env::getAccount() {}", env.getAccount());
+        LOGGER.info("Env::getRegion() {}", env.getRegion());
+
+        final SakaiApplicationStage sakaiAppStage = createSakaiAppStage(env, stageName);
+
+        // APIGateway, Lambda CDK, DynamoDB.
+        final StageDeployment stageDeployment = codePipeline.addStage(sakaiAppStage);
+
+        // Lambda SDK or Cognito or ...
+        // codePipeline.addStage(null);
+    }
+
+    private Bucket createArtifactBucket() {
         BucketProps artBucketProps = BucketProps.builder()
                 .encryption(BucketEncryption.S3_MANAGED)
                 .blockPublicAccess(BlockPublicAccess.BLOCK_ALL)
@@ -24,44 +55,45 @@ public class PipelineStack extends Stack {
                         .build()))
                 .build();
 
-        Bucket artBucket = new Bucket(this, "ArtifactBucketId", artBucketProps);
+        return new Bucket(this, "ArtifactBucketId", artBucketProps);
+    }
 
-        ConnectionSourceOptions conSourceOptions = ConnectionSourceOptions.builder()
-                .connectionArn("arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b")
+    private CodePipeline createCodePipeline(Bucket artifactBucket) {
+        final ConnectionSourceOptions conSourceOptions = ConnectionSourceOptions.builder()
+                .connectionArn(CONNECTION_ARN)
                 .triggerOnPush(true)
                 .build();
 
-        CodePipelineSource pipelineSource = CodePipelineSource.connection("Digitalisierung/sakai-cloud-infrastructure", "develop", conSourceOptions);
+        final CodePipelineSource pipelineSource = CodePipelineSource.connection("Digitalisierung/sakai-cloud-infrastructure", BRANCH, conSourceOptions);
 
-        ShellStepProps shellStepProps = ShellStepProps.builder()
+        final ShellStepProps shellStepProps = ShellStepProps.builder()
                 .env(Map.of())
                 .input(pipelineSource)
-                .primaryOutputDirectory("sakai-aws-infraructure/cdk.out")
+                .primaryOutputDirectory("sakai-aws-infrastructure/cdk.out")
                 .installCommands(List.of("npm install -g aws-cdk", "cdk --version"))
                 .commands(List.of("cd sakai-aws-infrastructure", "npm ci", "cdk synth"))
+                .env(Map.of("STAGE_NAME", "Dev", "ARTIFACT_BUCKET", "aws-sakai-bucket", "OBJECT_KEY", "asset-service-1.0-SNAPSHOT.jar"))
                 .build();
 
-        ShellStep shellStep = new ShellStep("ShellStepId", shellStepProps);
+        final ShellStep shellStep = new ShellStep("ShellStepId", shellStepProps);
 
-        CodePipelineProps codePipelineProps = CodePipelineProps.builder()
+        final CodePipelineProps codePipelineProps = CodePipelineProps.builder()
                 .synth(shellStep)
-                .artifactBucket(artBucket)
+                .artifactBucket(artifactBucket)
                 .pipelineName("DEV")
                 .selfMutation(true)
                 .build();
 
-        CodePipeline codePipeline = new CodePipeline(this, "BackendPipelineId", codePipelineProps);
+        return new CodePipeline(this, "BackendPipelineId", codePipelineProps);
+    }
 
-        Environment appEnv = Environment.builder()
-                .account(System.getenv("CDK_DEFAULT_ACCOUNT"))
-                .region(System.getenv("CDK_DEFAULT_REGION"))
+    private SakaiApplicationStage createSakaiAppStage(Environment appEnvironment, String name) {
+
+        final StageProps sakaiAppStageProps = StageProps.builder()
+                .stageName(name)
+                .env(appEnvironment)
                 .build();
 
-        StageProps sakaiAppStageProps = StageProps.builder()
-                .env(appEnv)
-                .build();
-
-        StageDeployment stageDeployment = codePipeline.addStage(new SakaiApplicationStage(this, "SakaiApplicationStage", sakaiAppStageProps)); // APIGateway, Lambda CDK, DynamoDB
-        // codePipeline.addStage(null); // Lambda SDK or Cognito or ...
+        return new SakaiApplicationStage(this, "SakaiApplicationStage", sakaiAppStageProps);
     }
 }
