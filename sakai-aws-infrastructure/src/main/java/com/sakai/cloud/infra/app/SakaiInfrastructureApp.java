@@ -1,5 +1,6 @@
-package com.sakai.cloud.infra;
+package com.sakai.cloud.infra.app;
 
+import com.sakai.cloud.infra.stack.PipelineStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;

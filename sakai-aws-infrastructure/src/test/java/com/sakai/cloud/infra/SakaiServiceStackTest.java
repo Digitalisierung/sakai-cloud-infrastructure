@@ -1,5 +1,6 @@
 package com.sakai.cloud.infra;
 
+import com.sakai.cloud.infra.stack.SakaiServiceStack;
 import org.junit.jupiter.api.Test;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.StackProps;

@@ -1,10 +1,10 @@
-package com.sakai.cloud.infra;
+package com.sakai.cloud.infra.config;
 
 import software.amazon.awscdk.RemovalPolicy;
 
 import java.util.List;
 
-public record StageConfig(
+public record StageConfigurator(
         String stageName,
         RemovalPolicy dynamoDbRemovalPolicy,
         Boolean dynamoDbPitrEnabled,
@@ -14,9 +14,9 @@ public record StageConfig(
         String logLevel,
         List<String> corsAllowedOrigins
 ) {
-    public static StageConfig fromStage(String stage) {
+    public static StageConfigurator fromStage(String stage) {
         return switch (stage) {
-            case "dev", "Dev", "DEV" -> new StageConfig(
+            case "dev", "Dev", "DEV" -> new StageConfigurator(
                     "dev",
                     RemovalPolicy.DESTROY,
                     false,
@@ -26,7 +26,7 @@ public record StageConfig(
                     "INFO",
                     List.of("*")
             );
-            case "test", "Test", "TEST" -> new StageConfig(
+            case "test", "Test", "TEST" -> new StageConfigurator(
                     "test",
                     RemovalPolicy.RETAIN,
                     true,

@@ -1,4 +1,4 @@
-package com.sakai.cloud.infra;
+package com.sakai.cloud.infra.stack;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +14,7 @@ public class PipelineStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(PipelineStack.class);
 
     private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
+    private static final String REPO_STRING = "Digitalisierung/sakai-cloud-infrastructure";
     private static final String BRANCH = "develop";
 
     public PipelineStack(Construct app, String id, StackProps stackProps) {
@@ -64,7 +65,7 @@ public class PipelineStack extends Stack {
                 .triggerOnPush(true)
                 .build();
 
-        final CodePipelineSource pipelineSource = CodePipelineSource.connection("Digitalisierung/sakai-cloud-infrastructure", BRANCH, conSourceOptions);
+        final CodePipelineSource pipelineSource = CodePipelineSource.connection(REPO_STRING, BRANCH, conSourceOptions);
 
         final ShellStepProps shellStepProps = ShellStepProps.builder()
                 .env(Map.of())
