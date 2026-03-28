@@ -1,5 +1,6 @@
 package com.sakai.cloud.infra.stack;
 
+import com.sakai.cloud.infra.config.StageConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.Environment;
@@ -11,7 +12,7 @@ import software.constructs.Construct;
 public class SakaiApplicationStage extends Stage {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiApplicationStage.class);
 
-    public SakaiApplicationStage(Construct scope, String id, StageProps stageProps) {
+    public SakaiApplicationStage(Construct scope, String id, StageProps stageProps, StageConfigurator stageConfig) {
         super(scope, id, stageProps);
 
         final Environment env = stageProps.getEnv();
@@ -28,7 +29,7 @@ public class SakaiApplicationStage extends Stage {
                 .env(env)
                 .build();
 
-        final SakaiServiceStack sakaiServiceStack = new SakaiServiceStack(this, "SakaiServiceStackId", serviceStackProps);
+        final SakaiServiceStack sakaiServiceStack = new SakaiServiceStack(this, "SakaiServiceStackId", serviceStackProps, stageConfig);
         sakaiServiceStack.initializeStack();
     }
 }

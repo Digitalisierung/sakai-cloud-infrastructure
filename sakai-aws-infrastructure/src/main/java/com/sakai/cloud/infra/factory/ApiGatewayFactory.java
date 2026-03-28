@@ -1,5 +1,6 @@
 package com.sakai.cloud.infra.factory;
 
+import com.sakai.cloud.infra.config.ApiGatewayConfigurator;
 import com.sakai.cloud.infra.util.StageDecisions;
 import software.amazon.awscdk.services.apigateway.*;
 import software.constructs.Construct;
@@ -14,18 +15,7 @@ public class ApiGatewayFactory {
     }
 
     private CorsOptions getCorsOptions(String stage) {
-        return switch (stage) {
-            case "prod", "Prod", "PROD" -> CorsOptions.builder()
-                    .allowMethods(Cors.ALL_METHODS)
-                    .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
-                    .build();
-            case "dev", "Dev", "DEV" -> CorsOptions.builder()
-                    .allowOrigins(Cors.ALL_ORIGINS) // for dev allow all origins. Must be changed in prod.
-                    .allowMethods(Cors.ALL_METHODS)
-                    .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
-                    .build();
-            default -> throw new IllegalArgumentException("Invalid stage: " + stage);
-        };
+        return StageDecisions.getCorsOptions(stage);
     }
 
     private RestApiProps getRestApiProps(String restApiName, String description, String stage) {
@@ -38,7 +28,7 @@ public class ApiGatewayFactory {
                 .build();
     }
 
-    public RestApi createApiGateway(Construct scope, String id, String restApiName, String description, String stage) {
-        return new RestApi(scope, id, getRestApiProps(restApiName, description, stage));
+    public RestApi createApiGateway(Construct scope, String id, ApiGatewayConfigurator apiGatewayConfigurator) {
+        return new RestApi(scope, id, getRestApiProps(apiGatewayConfigurator.restApiName(), apiGatewayConfigurator.description(), apiGatewayConfigurator.stage()));
     }
 }

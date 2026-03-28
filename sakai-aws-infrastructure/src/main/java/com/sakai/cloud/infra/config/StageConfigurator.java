@@ -17,17 +17,27 @@ public record StageConfigurator(
     public static StageConfigurator fromStage(String stage) {
         return switch (stage) {
             case "dev", "Dev", "DEV" -> new StageConfigurator(
-                    "dev",
+                    "Dev",
                     RemovalPolicy.DESTROY,
                     false,
                     true,
                     30,
                     1024,
-                    "INFO",
+                    "DEBUG",
                     List.of("*")
             );
             case "test", "Test", "TEST" -> new StageConfigurator(
-                    "test",
+                    "Test",
+                    RemovalPolicy.RETAIN,
+                    true,
+                    false,
+                    30,
+                    1024,
+                    "INFO",
+                    List.of("*")
+            );
+            case "prod", "Prod", "PROD" -> new StageConfigurator(
+                    "Prod",
                     RemovalPolicy.RETAIN,
                     true,
                     false,

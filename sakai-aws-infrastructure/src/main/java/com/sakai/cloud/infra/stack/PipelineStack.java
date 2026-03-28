@@ -1,5 +1,6 @@
 package com.sakai.cloud.infra.stack;
 
+import com.sakai.cloud.infra.config.StageConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.*;
@@ -21,7 +22,6 @@ public class PipelineStack extends Stack {
         super(app, id, stackProps);
 
         final Environment env = stackProps.getEnv();
-        final String stageName = "Dev";
 
         if (env == null || env.getAccount() == null || env.getRegion() == null) {
             throw new RuntimeException("Missing Environment in stackProps.");
@@ -34,13 +34,22 @@ public class PipelineStack extends Stack {
         LOGGER.info("Env::getAccount() {}", env.getAccount());
         LOGGER.info("Env::getRegion() {}", env.getRegion());
 
-        final SakaiApplicationStage sakaiAppStage = createSakaiAppStage(env, stageName);
+        StageConfigurator stageConfig = initializeStageConfiguration();
+        final SakaiApplicationStage sakaiAppStage = createSakaiAppStage(env, stageConfig);
 
         // APIGateway, Lambda CDK, DynamoDB.
         final StageDeployment stageDeployment = codePipeline.addStage(sakaiAppStage);
 
         // Lambda SDK or Cognito or ...
         // codePipeline.addStage(null);
+    }
+
+    private StageConfigurator initializeStageConfiguration() {
+        String stageName = (String) this.getNode().tryGetContext("stage");
+        if (stageName == null || stageName.isBlank()) stageName = System.getenv("STAGE_NAME");
+        if (stageName == null || stageName.isBlank()) throw new RuntimeException("Stage is not defined.");
+
+        return StageConfigurator.fromStage(stageName);
     }
 
     private Bucket createArtifactBucket() {
@@ -88,13 +97,13 @@ public class PipelineStack extends Stack {
         return new CodePipeline(this, "BackendPipelineId", codePipelineProps);
     }
 
-    private SakaiApplicationStage createSakaiAppStage(Environment appEnvironment, String name) {
+    private SakaiApplicationStage createSakaiAppStage(Environment appEnvironment, StageConfigurator stageConfig) {
 
         final StageProps sakaiAppStageProps = StageProps.builder()
-                .stageName(name)
+                .stageName(stageConfig.stageName())
                 .env(appEnvironment)
                 .build();
 
-        return new SakaiApplicationStage(this, "SakaiApplicationStage", sakaiAppStageProps);
+        return new SakaiApplicationStage(this, "SakaiApplicationStage", sakaiAppStageProps, stageConfig);
     }
 }

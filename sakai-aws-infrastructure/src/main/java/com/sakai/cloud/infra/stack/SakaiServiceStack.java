@@ -1,6 +1,8 @@
 package com.sakai.cloud.infra.stack;
 
+import com.sakai.cloud.infra.config.ApiGatewayConfigurator;
 import com.sakai.cloud.infra.config.LambdaConfigurator;
+import com.sakai.cloud.infra.config.StageConfigurator;
 import com.sakai.cloud.infra.factory.ApiGatewayFactory;
 import com.sakai.cloud.infra.factory.DynamoDbTableFactory;
 import com.sakai.cloud.infra.factory.LambdaFunctionFactory;
@@ -32,54 +34,60 @@ public class SakaiServiceStack extends Stack {
     // sakai-lambda-artifacts
     private String artifactBucketName;
     // asset-service-1.0-SNAPSHOT.jar
-    private String artifactObjectKey;
+    //private String artifactObjectKey;
     private Table inventoryTable;
     // DEV, TEST, PROD, etc.
-    private String stage;
+    private StageConfigurator stageConfig;
 
-    public SakaiServiceStack(Construct app, String id, StackProps props) {
+    public SakaiServiceStack(Construct app, String id, StackProps props, StageConfigurator stageConfig) {
         super(app, id, props);
 
-        stage = (String) this.getNode().tryGetContext("stage");
-        if (stage == null) stage = System.getenv("STAGE_NAME");
-        if (stage == null) throw new RuntimeException("Stage is not defined");
+        this.stageConfig = stageConfig;
 
         artifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
         if (artifactBucketName == null) artifactBucketName = System.getenv("ARTIFACT_BUCKET");
         if (artifactBucketName == null) throw new RuntimeException("Artifact Bucket Name is not defined");
 
-        artifactObjectKey = (String) this.getNode().tryGetContext("artifactObjectKey");
-        if (artifactObjectKey == null) artifactObjectKey = System.getenv("OBJECT_KEY");
-        if (artifactObjectKey == null) throw new RuntimeException("Artifact Object Key is not defined");
-
-        LOGGER.info("Stage: {}, artifactBucketName: {}, artifactObjectKey: {}", stage, artifactBucketName, artifactObjectKey);
+        // LOGGER.info("Stage: {}, artifactBucketName: {}, artifactObjectKey: {}", stage, artifactBucketName, artifactObjectKey);
     }
 
-    public void initializeStack(DynamoDbTableFactory dbTableFactory, LambdaFunctionFactory functionFactory, ApiGatewayFactory apiGatewayFactory) {
+    public void initializeStack() {
 
-        // === DynamoDB Table ===
+        DynamoDbTableFactory dbTableFactory = new DynamoDbTableFactory();
+        LambdaFunctionFactory functionFactory = new LambdaFunctionFactory();
+        ApiGatewayFactory apiGatewayFactory = new ApiGatewayFactory();
+
+
+        // === DynamoDB TABLE ===
         //inventoryTable = createDynamoDbTable(stage);
-        inventoryTable = dbTableFactory.createDynamoDbTable(this, "InventoryTableId", stage);
+        inventoryTable = dbTableFactory.createDynamoDbTable(this, "InventoryTableId", stageConfig.stageName());
 
-        // S3 Artifact Bucket
+        // === S3 Artifact BUCKET ===
         final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
 
-        // === Lambda Function Role ===
+        // === Lambda Function IAM Role ===
         final Role lambdaExecRole = createLambdaExecRole();
         inventoryTable.grantReadData(lambdaExecRole);
 
-        // === Function for ListArticles Handler ===
-        // final Function listArticlesFunction = createLambdaFunction(lambdaExecRole, artifactBucket);
-        LambdaConfigurator lambdaFunctionConfig = new LambdaConfigurator("", lambdaExecRole, Code.fromBucket(artifactBucket, "???"), Map.of("TABLE_NAME", inventoryTable.getTableName()));
-        final Function listArticlesFunction = functionFactory.createLambdaFunction(this, "ListArticlesHandlerFunction", lambdaFunctionConfig);
-
+        // == ApiGateway ===
         // final RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
-        final RestApi lambdaRestApi = apiGatewayFactory.createApiGateway(
-                this,
-                "ApiGatewayId",
+        ApiGatewayConfigurator apiGatewayConfigurator = new ApiGatewayConfigurator(
                 "InventoryRestApiGateway",
                 "API for Inventory Management System",
-                stage);
+                stageConfig.stageName()
+        );
+        final RestApi lambdaRestApi = apiGatewayFactory.createApiGateway(this, "ApiGatewayId", apiGatewayConfigurator);
+
+        // === LAMBDA FUNCTION for ListArticles Handler ===
+        LambdaConfigurator lambdaFunctionConfig = new LambdaConfigurator(
+                "com.sakai.inventory.api.handler.ListArticlesHandler::handleRequest",
+                lambdaExecRole,
+                Code.fromBucket(artifactBucket, "asset-service-1.0-SNAPSHOT.jar"),
+                Map.of()
+        );
+        // final Function listArticlesFunction = createLambdaFunction(lambdaExecRole, artifactBucket);
+        final Function listArticlesFunction = functionFactory.createLambdaFunction(this, "ListArticlesHandlerFunctionId", lambdaFunctionConfig);
+
 
         // define `/articles` resource
         final IResource listArticlesResource = lambdaRestApi.getRoot().addResource("articles");
