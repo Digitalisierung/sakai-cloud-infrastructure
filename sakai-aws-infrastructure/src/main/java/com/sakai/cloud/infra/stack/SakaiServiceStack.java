@@ -32,7 +32,7 @@ public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
     // sakai-lambda-artifacts
-    private String artifactBucketName;
+    private String artifactBucketName = "sakai-lambda-artifacts-dev";
     // asset-service-1.0-SNAPSHOT.jar
     //private String artifactObjectKey;
     private Table inventoryTable;
@@ -44,9 +44,9 @@ public class SakaiServiceStack extends Stack {
 
         this.stageConfig = stageConfig;
 
-        artifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
-        if (artifactBucketName == null) artifactBucketName = System.getenv("ARTIFACT_BUCKET");
-        if (artifactBucketName == null) throw new RuntimeException("Artifact Bucket Name is not defined");
+//        artifactBucketName = (String) this.getNode().tryGetContext("artifactBucketName");
+//        if (artifactBucketName == null) artifactBucketName = System.getenv("ARTIFACT_BUCKET");
+//        if (artifactBucketName == null) throw new RuntimeException("Artifact Bucket Name is not defined");
 
         // LOGGER.info("Stage: {}, artifactBucketName: {}, artifactObjectKey: {}", stage, artifactBucketName, artifactObjectKey);
     }
