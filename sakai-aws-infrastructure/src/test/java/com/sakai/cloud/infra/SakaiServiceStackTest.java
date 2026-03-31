@@ -1,6 +1,10 @@
 package com.sakai.cloud.infra;
 
+import com.sakai.cloud.infra.config.StageConfigurator;
+import com.sakai.cloud.infra.stack.SakaiServiceStack;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.assertions.Template;
@@ -8,7 +12,9 @@ import software.amazon.awscdk.assertions.Template;
 import java.util.List;
 import java.util.Map;
 
-class InfrastructureStackTest {
+class SakaiServiceStackTest {
+    private static final Logger LOGGER = LoggerFactory.getLogger("SakaiServiceStack");
+
     @Test
     void test_LambdaExecRole() {
         App app = App.Builder.create()
@@ -23,7 +29,9 @@ class InfrastructureStackTest {
                 .stackName("TestStack")
                 .build();
 
-        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", props);
+        LOGGER.info("Stage {}", app.getStageName()); // TODO: Warum null hier?
+        StageConfigurator stageConfig = StageConfigurator.fromStage("test");
+        SakaiServiceStack stack = new SakaiServiceStack(app, "TestStackId", props, stageConfig);
         stack.initializeStack();
 
         Template template = Template.fromStack(stack);
@@ -56,7 +64,9 @@ class InfrastructureStackTest {
                 .stackName("TestStack")
                 .build();
 
-        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
+        LOGGER.info("Stage {}", app.getStageName()); // TODO: Warum null hier??
+        StageConfigurator stageConfig = StageConfigurator.fromStage("test");
+        SakaiServiceStack stack = new SakaiServiceStack(app, "TestStackId", stackProps, stageConfig);
         stack.initializeStack();
 
         Template template = Template.fromStack(stack);
@@ -76,7 +86,9 @@ class InfrastructureStackTest {
                 .stackName("TestStack")
                 .build();
 
-        InfrastructureStack stack = new InfrastructureStack(app, "TestStackId", stackProps);
+        LOGGER.info("Stage {}", app.getStageName()); // TODO: Warum null hier??
+        StageConfigurator stageConfig = StageConfigurator.fromStage("test");
+        SakaiServiceStack stack = new SakaiServiceStack(app, "TestStackId", stackProps, stageConfig);
         stack.initializeStack();
 
         Template template = Template.fromStack(stack);
