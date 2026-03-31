@@ -104,13 +104,14 @@ public class PipelineStack extends Stack {
                 .installCommands(List.of(
                         "npm install -g aws-cdk",
                         "cdk --version",
-                        "yum install -y java-21-amazon-corretto-devel",
-                        "export JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto",
+                        "apt-get update",
+                        "apt-get install -y openjdk-21-jdk",
+                        "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
                         "export PATH=$JAVA_HOME/bin:$PATH",
                         "java -version"
                 ))
                 .commands(List.of(
-                        "export JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto",
+                        "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
                         "export PATH=$JAVA_HOME/bin:$PATH",
                         "cd sakai-aws-infrastructure",
                         "cdk synth"
