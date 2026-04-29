@@ -82,7 +82,7 @@ public class SakaiServiceStack extends Stack {
         LambdaConfigurator lambdaFunctionConfig = new LambdaConfigurator(
                 "com.sakai.inventory.api.handler.ListArticlesHandler::handleRequest",
                 lambdaExecRole,
-                Code.fromBucket(artifactBucket, "asset-service-1.0-SNAPSHOT.jar"),
+                Code.fromBucket(artifactBucket, "asset-service-lambda.jar"),
                 Map.of()
         );
         // final Function listArticlesFunction = createLambdaFunction(lambdaExecRole, artifactBucket);

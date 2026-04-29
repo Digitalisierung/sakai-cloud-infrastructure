@@ -33,13 +33,14 @@ public class PipelineStack extends Stack {
         LOGGER.info("Env::getAccount() {}", env.getAccount());
         LOGGER.info("Env::getRegion() {}", env.getRegion());
 
-        final Bucket artBucket = createArtifactBucket();
+        // S3 Bucket zum Speichern des Pipeline's Artifakt.
+        final Bucket pipelineArtBucket = createArtifactBucket();
 
         final StageConfigurator stageConfig = initializeStageConfiguration();
         LOGGER.info("Stage name: {}, branch: {}", stageConfig.stageName(), stageConfig.branch());
         LOGGER.info("Connection arn: {}", stageConfig.connectionArn());
 
-        final CodePipeline codePipeline = createCodePipeline(artBucket, stageConfig);
+        final CodePipeline codePipeline = createCodePipeline(pipelineArtBucket, stageConfig);
 
         final SakaiApplicationStage sakaiAppStage = createSakaiAppStage(env, stageConfig);
 
@@ -105,22 +106,18 @@ public class PipelineStack extends Stack {
                         "npm install -g aws-cdk",
                         "cdk --version",
                         "apt-get update",
-                        "apt-get install -y openjdk-21-jdk",
-                        "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
-                        "export PATH=$JAVA_HOME/bin:$PATH",
-                        "java -version"
+                        "apt-get install -y openjdk-21-jdk"
                 ))
                 .commands(List.of(
                         "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
                         "export PATH=$JAVA_HOME/bin:$PATH",
+                        "java --version",
                         "cd sakai-aws-infrastructure",
-                        "cdk synth"
+                        stageConfig.cdkSynthCommand()
                 ))
                 .primaryOutputDirectory("sakai-aws-infrastructure/cdk.out")
                 .env(Map.of(
-                        "STAGE_NAME", stageConfig.stageName(),
-                        "ARTIFACT_BUCKET", "aws-sakai-bucket-dev",
-                        "OBJECT_KEY", "asset-service-1.0-SNAPSHOT.jar"
+                        "STAGE_NAME", stageConfig.stageName()
                 ))
                 .build();
 
