@@ -15,14 +15,14 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
-public class PipelineStack extends Stack {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PipelineStack.class);
+public class InfrastructurePipelineStack extends Stack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(InfrastructurePipelineStack.class);
 
     //private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
     private static final String REPO_STRING = "Digitalisierung/sakai-cloud-infrastructure";
     //private static final String BRANCH = "develop";
 
-    public PipelineStack(Construct app, String id, StackProps stackProps) {
+    public InfrastructurePipelineStack(Construct app, String id, StackProps stackProps) {
         super(app, id, stackProps);
 
         final Environment env = stackProps.getEnv();
@@ -33,13 +33,14 @@ public class PipelineStack extends Stack {
         LOGGER.info("Env::getAccount() {}", env.getAccount());
         LOGGER.info("Env::getRegion() {}", env.getRegion());
 
-        final Bucket artBucket = createArtifactBucket();
+        // S3 Bucket zum Speichern des Pipeline's Artifakt.
+        final Bucket pipelineArtBucket = createArtifactBucket();
 
         final StageConfigurator stageConfig = initializeStageConfiguration();
         LOGGER.info("Stage name: {}, branch: {}", stageConfig.stageName(), stageConfig.branch());
         LOGGER.info("Connection arn: {}", stageConfig.connectionArn());
 
-        final CodePipeline codePipeline = createCodePipeline(artBucket, stageConfig);
+        final CodePipeline codePipeline = createCodePipeline(pipelineArtBucket, stageConfig);
 
         final SakaiApplicationStage sakaiAppStage = createSakaiAppStage(env, stageConfig);
 
@@ -105,22 +106,18 @@ public class PipelineStack extends Stack {
                         "npm install -g aws-cdk",
                         "cdk --version",
                         "apt-get update",
-                        "apt-get install -y openjdk-21-jdk",
-                        "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
-                        "export PATH=$JAVA_HOME/bin:$PATH",
-                        "java -version"
+                        "apt-get install -y openjdk-21-jdk"
                 ))
                 .commands(List.of(
                         "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
                         "export PATH=$JAVA_HOME/bin:$PATH",
+                        "java --version",
                         "cd sakai-aws-infrastructure",
-                        "cdk synth"
+                        stageConfig.cdkSynthCommand()
                 ))
                 .primaryOutputDirectory("sakai-aws-infrastructure/cdk.out")
                 .env(Map.of(
-                        "STAGE_NAME", stageConfig.stageName(),
-                        "ARTIFACT_BUCKET", "aws-sakai-bucket-dev",
-                        "OBJECT_KEY", "asset-service-1.0-SNAPSHOT.jar"
+                        "STAGE_NAME", stageConfig.stageName()
                 ))
                 .build();
 

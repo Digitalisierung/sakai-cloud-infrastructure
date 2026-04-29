@@ -14,7 +14,8 @@ public record StageConfigurator(
         Integer lambdaTimeout,
         Integer lambdaMemorySize,
         String logLevel,
-        List<String> corsAllowedOrigins
+        List<String> corsAllowedOrigins,
+        String cdkSynthCommand
 ) {
     public static StageConfigurator fromStage(String stage) {
         return switch (stage) {
@@ -28,7 +29,8 @@ public record StageConfigurator(
                     30,
                     1024,
                     "DEBUG",
-                    List.of("*")
+                    List.of("*"),
+                    "cdk synth -c stage=Dev"
             );
             case "test", "Test", "TEST" -> new StageConfigurator(
                     "Test",
@@ -40,7 +42,8 @@ public record StageConfigurator(
                     30,
                     1024,
                     "INFO",
-                    List.of("*")
+                    List.of("*"),
+                    "cdk synth -c stage=Test"
             );
             case "prod", "Prod", "PROD" -> new StageConfigurator(
                     "Prod",
@@ -52,7 +55,8 @@ public record StageConfigurator(
                     30,
                     1024,
                     "ERROR",
-                    List.of("*")
+                    List.of("*"),
+                    "cdk synth -c stage=Prod"
             );
             default -> throw new IllegalArgumentException("Invalid stage: " + stage);
         };
@@ -71,7 +75,8 @@ public record StageConfigurator(
                 30,
                 1024,
                 "DEBUG",
-                List.of("*")
+                List.of("*"),
+                "cdk synth -c branch=" + branch
         );
     }
 }

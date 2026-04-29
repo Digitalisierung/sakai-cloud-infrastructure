@@ -1,21 +1,699 @@
-version: 0.2
-phases:
-  install:
-    runtime-versions:
-      java: corretto21
-    commands:
-      - echo "Installing AWS CDK"
-      - npm install -g aws-cdk
-      - cdk --version
-  pre_build:
-    commands:
-      - echo "build project and running tests..."
-      - mvn clean test
-  build:
-    commands:
-      - echo "deploying CloudFormation Stack to DEV..."
-      - cd sakai-aws-infrastructure
-      - cdk deploy ${STACK_NAME} --context stage=${STAGE_NAME} --context artifactBucketName=${ARTIFACT_BUCKET} --context artifactObjectKey=${OBJECT_KEY} --require-approval never
-artifacts:
-  files:
-    - '**/*'
+Description: SAKAI Service. Pipeline-Stack für Backend-Infrastruktur (APIGateway, Lambda, DynamoDB) für SAKAI Khachi — ein Inventory Management System.
+Resources:
+  ArtifactBucketId6F43A63E:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 10
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/ArtifactBucketId/Resource
+  ArtifactBucketIdPolicy02F419F4:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: ArtifactBucketId6F43A63E
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:PutBucketPolicy
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::672296383273:role/cdk-hnb659fds-deploy-role-672296383273-eu-central-1
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/ArtifactBucketId/Policy/Resource
+  ArtifactBucketIdAutoDeleteObjectsCustomResource663537C8:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: ArtifactBucketId6F43A63E
+    DependsOn:
+      - ArtifactBucketIdPolicy02F419F4
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/ArtifactBucketId/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-672296383273-eu-central-1
+        S3Key: faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs22.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: ArtifactBucketId6F43A63E
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.faa95a81ae7d7373f3e1f242268f904eb748d8d0fdd306e8a6fe515a1905a7d6
+      aws:asset:property: Code
+  BackendPipelineIdPipelineRoleB235EE63:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Role/Resource
+  BackendPipelineIdPipelineRoleDefaultPolicy8A769F07:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - BackendPipelineIdCodeBuildActionRole0AA402CD
+                  - Arn
+              - Fn::GetAtt:
+                  - BackendPipelineIdPipelineSourceDigitalisierungsakaicloudinfrastructureCodePipelineActionRoleDF2648F7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::672296383273:role/cdk-hnb659fds-deploy-role-672296383273-eu-central-1
+          - Action: codestar-connections:UseConnection
+            Effect: Allow
+            Resource: arn:aws:codeconnections:eu-central-1:672296383273:connection/928fe30b-f26c-4070-9ca3-31ad39780b4f
+        Version: "2012-10-17"
+      PolicyName: BackendPipelineIdPipelineRoleDefaultPolicy8A769F07
+      Roles:
+        - Ref: BackendPipelineIdPipelineRoleB235EE63
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Role/DefaultPolicy/Resource
+  BackendPipelineIdPipeline1492E1E5:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location:
+          Ref: ArtifactBucketId6F43A63E
+        Type: S3
+      Name: Dev
+      PipelineType: V2
+      RestartExecutionOnUpdate: true
+      RoleArn:
+        Fn::GetAtt:
+          - BackendPipelineIdPipelineRoleB235EE63
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              Configuration:
+                ConnectionArn: arn:aws:codeconnections:eu-central-1:672296383273:connection/928fe30b-f26c-4070-9ca3-31ad39780b4f
+                FullRepositoryId: Digitalisierung/sakai-cloud-infrastructure
+                BranchName: develop
+                DetectChanges: true
+              Name: Digitalisierung_sakai-cloud-infrastructure
+              OutputArtifacts:
+                - Name: Digitalisierung_sakai_cloud_infrastructure_Source
+              RoleArn:
+                Fn::GetAtt:
+                  - BackendPipelineIdPipelineSourceDigitalisierungsakaicloudinfrastructureCodePipelineActionRoleDF2648F7
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BackendPipelineIdPipelineBuildShellStepIdCdkBuildProject94B17446
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"0d480675580573976ae0c1937f3a45e1ede04f02a993f5d6d4a3eba922c41b0a"}]'
+              InputArtifacts:
+                - Name: Digitalisierung_sakai_cloud_infrastructure_Source
+              Name: ShellStepId
+              OutputArtifacts:
+                - Name: ShellStepId_Output
+              RoleArn:
+                Fn::GetAtt:
+                  - BackendPipelineIdCodeBuildActionRole0AA402CD
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BackendPipelineIdUpdatePipelineSelfMutation8821AA8A
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"66a7d6c4083abeee488ba20c65c6cf9f0c4a4112e31a27555e80233786a09d83"}]'
+              InputArtifacts:
+                - Name: ShellStepId_Output
+              Name: SelfMutate
+              RoleArn:
+                Fn::GetAtt:
+                  - BackendPipelineIdCodeBuildActionRole0AA402CD
+                  - Arn
+              RunOrder: 1
+          Name: UpdatePipeline
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: Dev-SakaiServiceStackId
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - :iam::672296383273:role/cdk-hnb659fds-cfn-exec-role-672296383273-eu-central-1
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: ShellStepId_Output::assembly-SakaiPipelineStackId-SakaiApplicationStage/SakaiPipelineStackIdSakaiApplicationStageSakaiServiceStackId5B4992A6.template.json
+              InputArtifacts:
+                - Name: ShellStepId_Output
+              Name: Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::672296383273:role/cdk-hnb659fds-deploy-role-672296383273-eu-central-1
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: Dev-SakaiServiceStackId
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::672296383273:role/cdk-hnb659fds-deploy-role-672296383273-eu-central-1
+              RunOrder: 2
+          Name: Dev
+    DependsOn:
+      - BackendPipelineIdPipelineRoleDefaultPolicy8A769F07
+      - BackendPipelineIdPipelineRoleB235EE63
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Resource
+  BackendPipelineIdPipelineSourceDigitalisierungsakaicloudinfrastructureCodePipelineActionRoleDF2648F7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - BackendPipelineIdPipelineRoleB235EE63
+                  - Arn
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Source/Digitalisierung_sakai-cloud-infrastructure/CodePipelineActionRole/Resource
+  BackendPipelineIdPipelineSourceDigitalisierungsakaicloudinfrastructureCodePipelineActionRoleDefaultPolicy63562695:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codestar-connections:UseConnection
+            Effect: Allow
+            Resource: arn:aws:codeconnections:eu-central-1:672296383273:connection/928fe30b-f26c-4070-9ca3-31ad39780b4f
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObjectAcl
+              - s3:PutObjectVersionAcl
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ArtifactBucketId6F43A63E
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: BackendPipelineIdPipelineSourceDigitalisierungsakaicloudinfrastructureCodePipelineActionRoleDefaultPolicy63562695
+      Roles:
+        - Ref: BackendPipelineIdPipelineSourceDigitalisierungsakaicloudinfrastructureCodePipelineActionRoleDF2648F7
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Source/Digitalisierung_sakai-cloud-infrastructure/CodePipelineActionRole/DefaultPolicy/Resource
+  BackendPipelineIdPipelineBuildShellStepIdCdkBuildProjectRole47E551B1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Build/ShellStepId/CdkBuildProject/Role/Resource
+  BackendPipelineIdPipelineBuildShellStepIdCdkBuildProjectRoleDefaultPolicy6FCE6C3E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:logs:eu-central-1:672296383273:log-group:/aws/codebuild/
+                    - Ref: BackendPipelineIdPipelineBuildShellStepIdCdkBuildProject94B17446
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:logs:eu-central-1:672296383273:log-group:/aws/codebuild/
+                    - Ref: BackendPipelineIdPipelineBuildShellStepIdCdkBuildProject94B17446
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:codebuild:eu-central-1:672296383273:report-group/
+                  - Ref: BackendPipelineIdPipelineBuildShellStepIdCdkBuildProject94B17446
+                  - -*
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BackendPipelineIdPipelineBuildShellStepIdCdkBuildProjectRoleDefaultPolicy6FCE6C3E
+      Roles:
+        - Ref: BackendPipelineIdPipelineBuildShellStepIdCdkBuildProjectRole47E551B1
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Build/ShellStepId/CdkBuildProject/Role/DefaultPolicy/Resource
+  BackendPipelineIdPipelineBuildShellStepIdCdkBuildProject94B17446:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step SakaiPipelineStackId/Pipeline/Build/ShellStepId
+      EncryptionKey: alias/aws/s3
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: STAGE_NAME
+            Type: PLAINTEXT
+            Value: Dev
+          - Name: ARTIFACT_BUCKET
+            Type: PLAINTEXT
+            Value: aws-sakai-bucket-dev
+          - Name: OBJECT_KEY
+            Type: PLAINTEXT
+            Value: asset-service-1.0-SNAPSHOT.jar
+        Image: aws/codebuild/standard:7.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - BackendPipelineIdPipelineBuildShellStepIdCdkBuildProjectRole47E551B1
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk",
+                  "cdk --version",
+                  "export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))",
+                  "java -version"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cd sakai-aws-infrastructure",
+                  "cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "sakai-aws-infrastructure/cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/Pipeline/Build/ShellStepId/CdkBuildProject/Resource
+  BackendPipelineIdCodeBuildActionRole0AA402CD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - BackendPipelineIdPipelineRoleB235EE63
+                  - Arn
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/CodeBuildActionRole/Resource
+  BackendPipelineIdCodeBuildActionRoleDefaultPolicyE83EC355:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - BackendPipelineIdPipelineBuildShellStepIdCdkBuildProject94B17446
+                  - Arn
+              - Fn::GetAtt:
+                  - BackendPipelineIdUpdatePipelineSelfMutation8821AA8A
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: BackendPipelineIdCodeBuildActionRoleDefaultPolicyE83EC355
+      Roles:
+        - Ref: BackendPipelineIdCodeBuildActionRole0AA402CD
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/CodeBuildActionRole/DefaultPolicy/Resource
+  BackendPipelineIdUpdatePipelineSelfMutationRole0C8A0B8A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/UpdatePipeline/SelfMutation/Role/Resource
+  BackendPipelineIdUpdatePipelineSelfMutationRoleDefaultPolicy4C23D060:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:logs:eu-central-1:672296383273:log-group:/aws/codebuild/
+                    - Ref: BackendPipelineIdUpdatePipelineSelfMutation8821AA8A
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:logs:eu-central-1:672296383273:log-group:/aws/codebuild/
+                    - Ref: BackendPipelineIdUpdatePipelineSelfMutation8821AA8A
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:codebuild:eu-central-1:672296383273:report-group/
+                  - Ref: BackendPipelineIdUpdatePipelineSelfMutation8821AA8A
+                  - -*
+          - Action: sts:AssumeRole
+            Condition:
+              ForAnyValue:StringEquals:
+                iam:ResourceTag/aws-cdk:bootstrap-role:
+                  - image-publishing
+                  - file-publishing
+                  - deploy
+            Effect: Allow
+            Resource: arn:*:iam::672296383273:role/*
+          - Action:
+              - cloudformation:DescribeStacks
+              - s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucketId6F43A63E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucketId6F43A63E
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BackendPipelineIdUpdatePipelineSelfMutationRoleDefaultPolicy4C23D060
+      Roles:
+        - Ref: BackendPipelineIdUpdatePipelineSelfMutationRole0C8A0B8A
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/UpdatePipeline/SelfMutation/Role/DefaultPolicy/Resource
+  BackendPipelineIdUpdatePipelineSelfMutation8821AA8A:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step SakaiPipelineStackId/Pipeline/UpdatePipeline/SelfMutate
+      EncryptionKey: alias/aws/s3
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:7.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      Name: Dev-selfupdate
+      ServiceRole:
+        Fn::GetAtt:
+          - BackendPipelineIdUpdatePipelineSelfMutationRole0C8A0B8A
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk@2"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk -a . deploy SakaiPipelineStackId --require-approval=never --verbose"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/BackendPipelineId/UpdatePipeline/SelfMutation/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/91WbW+bMBD+LfXHymFd8o1vJO2mrV0bkW5foqgy5pK5MTby2ekQ4r9PNpCXTtu0l65ZJRBwz/l8z3MH3DAajkbR2Ql7wAHP1wMpsqieWcbXlD3gXY2jqB47vgY7rwlzVp+DBAs32T1wiyS2xgElmdR8PXWZFDzhHBBJTE4JJaC4qUortCIxmY3uPiTXyduL84AsteEwm131MaRYAq+4hNRJQBLP62ZBiYFCb5icail4RWKSA1qjK0LJBgwKrSAn8ZJJhIbWhOX51X6YEIWGVE7JolnQyVK1bGh7aePOa5KFx5D2vluLN5TrHEpRghQKonra3c1r0huvWQEd6d50W5Xe9GlIKOFGIyaca6fsJVTY5dwBKayEVimUUnDm1Wo371U04BAmO8eZK0ttbKjSzgctM/biC3DnI9yoj2XOLPTqGi1hWxSWSbiEKtWWdbXxdmasWDJuxzspKHEIPdtUS3ijTcL9GjxUfWbZKqhN0N9t1WgW/8IhFKxPs6GCFVHts/Uti+gKyMcViWtSGqG4KJnsKtETDz5+QcutDdtqttumzeJWT/sgfU/6Rg2otYx/fqd8Elss9N1PwR/HPU70t4X1q1eGKZts4W+0+LVUnkX4g+6gf6jHMRLcY9T1/5FU7a+m8fLL+DRo+OZ6DWj3D/XS9DRu9ePCfMccPusWClAWD7Y9CvMzUXqh2/7HDdIOGHuzYOaEzHeD4NRoPw/7YfPwaBe2aNPQiUOrixRQO8MhsAyvUWd4hE+N3ogczJgh0AQR/Mi3EmpF+xETo4nOtwMa3Q9Mn+BcNPQ927BXw9fRWTQ8uUchBsYpKwqI0vb6FflWta9QDAAA
+    Metadata:
+      aws:cdk:path: SakaiPipelineStackId/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
