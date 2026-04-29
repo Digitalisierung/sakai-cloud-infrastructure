@@ -15,14 +15,14 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
-public class PipelineStack extends Stack {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PipelineStack.class);
+public class InfrastructurePipelineStack extends Stack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(InfrastructurePipelineStack.class);
 
     //private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
     private static final String REPO_STRING = "Digitalisierung/sakai-cloud-infrastructure";
     //private static final String BRANCH = "develop";
 
-    public PipelineStack(Construct app, String id, StackProps stackProps) {
+    public InfrastructurePipelineStack(Construct app, String id, StackProps stackProps) {
         super(app, id, stackProps);
 
         final Environment env = stackProps.getEnv();

@@ -1,6 +1,6 @@
 package com.sakai.cloud.infra.app;
 
-import com.sakai.cloud.infra.stack.PipelineStack;
+import com.sakai.cloud.infra.stack.InfrastructurePipelineStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;
@@ -28,7 +28,7 @@ public class SakaiInfrastructureApp {
                 .env(env)
                 .build();
 
-        final PipelineStack pipelineStack = new PipelineStack(app, "SakaiPipelineStackId", stackProps);
+        final InfrastructurePipelineStack infrastructurePipelineStack = new InfrastructurePipelineStack(app, "SakaiPipelineStackId", stackProps);
 
 //        InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
 //        sakaiInfraStack.initializeStack();
