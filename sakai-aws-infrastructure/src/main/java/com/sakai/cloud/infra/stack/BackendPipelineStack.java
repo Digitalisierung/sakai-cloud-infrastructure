@@ -35,8 +35,9 @@ public class BackendPipelineStack extends Stack {
         Bucket pipelineArtifactBucket = createPipelineArtifactBucket();
         Role lambdaArtifactBucketRole = createArtifactBucketRole();
         PipelineProject codeBuildProject = createPipelineProject(lambdaArtifactBucketRole);
-        Role pipelineRole = createPipelineRole();
+        Role pipelineRole = createPipelineRole(codeBuildProject);
         backendPipeline = createBackendPipeline(pipelineArtifactBucket, codeBuildProject, pipelineRole);
+        pipelineArtifactBucket.grantReadWrite(pipelineRole);
     }
 
     private Pipeline createBackendPipeline(Bucket pipelineArtifactBucket, PipelineProject codeBuildProject, Role pipelineRole) {
@@ -78,8 +79,16 @@ public class BackendPipelineStack extends Stack {
         return new Pipeline(this, "BackendPipelineId", pipelineProps);
     }
 
-    private Role createPipelineRole() {
-        PolicyStatement policyStatement = PolicyStatement.Builder.create()
+    private Role createPipelineRole(PipelineProject codebuildProject) {
+        // Berechtigung für Pipeline, um CodeBuild zu starten.
+        PolicyStatement startCodeBuildPermissions = PolicyStatement.Builder.create()
+                .effect(Effect.ALLOW)
+                .actions(List.of("codebuild:StartBuild", "codebuild:BatchGetBuilds"))
+                .resources(List.of(codebuildProject.getProjectArn()))
+                .build();
+
+        // Berechtigung, um zu deployen.
+        PolicyStatement deployPermissions = PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
                 .actions(List.of(
                         "lambda:GetFunction",
@@ -97,7 +106,8 @@ public class BackendPipelineStack extends Stack {
 
         Role pipelineRole = new Role(this, "PipelineRoleId", pipelineRoleProps);
 
-        pipelineRole.addToPolicy(policyStatement);
+        pipelineRole.addToPolicy(startCodeBuildPermissions);
+        pipelineRole.addToPolicy(deployPermissions);
 
         return pipelineRole;
     }

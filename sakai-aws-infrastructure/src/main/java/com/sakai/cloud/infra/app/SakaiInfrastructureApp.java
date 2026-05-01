@@ -1,5 +1,7 @@
 package com.sakai.cloud.infra.app;
 
+import com.sakai.cloud.infra.config.StageConfigurator;
+import com.sakai.cloud.infra.stack.BackendPipelineStack;
 import com.sakai.cloud.infra.stack.InfrastructurePipelineStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +30,8 @@ public class SakaiInfrastructureApp {
                 .env(env)
                 .build();
 
+        final BackendPipelineStack backendPipelineStack = new BackendPipelineStack(app, "SakaiBackendPipelineStackId", stackProps, StageConfigurator.fromStage("dev"));
+        backendPipelineStack.initializeStack();
         final InfrastructurePipelineStack infrastructurePipelineStack = new InfrastructurePipelineStack(app, "SakaiPipelineStackId", stackProps);
 
 //        InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
