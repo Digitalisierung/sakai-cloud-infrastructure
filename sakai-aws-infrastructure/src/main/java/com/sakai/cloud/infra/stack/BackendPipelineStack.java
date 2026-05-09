@@ -24,6 +24,8 @@ public class BackendPipelineStack extends Stack {
     private Bucket lambdaArtifactBucket;
     private Pipeline backendPipeline;
 
+    // TODO: buildspec.yaml muss im Backend-Repo (sakai-lambda-slave) vorhanden sein.
+    // Alternativ: BuildSpec.fromObject() für Inline-Definition verwenden.
     public BackendPipelineStack(Construct scope, String id, StackProps stackProps, StageConfigurator stageConfig) {
         super(scope, id, stackProps);
 
@@ -35,9 +37,9 @@ public class BackendPipelineStack extends Stack {
         Bucket pipelineArtifactBucket = createPipelineArtifactBucket();
         Role lambdaArtifactBucketRole = createArtifactBucketRole();
         PipelineProject codeBuildProject = createPipelineProject(lambdaArtifactBucketRole);
-        Role pipelineRole = createPipelineRole(codeBuildProject);
-        backendPipeline = createBackendPipeline(pipelineArtifactBucket, codeBuildProject, pipelineRole);
+        Role pipelineRole = createPipelineRole(codeBuildProject, lambdaArtifactBucketRole);
         pipelineArtifactBucket.grantReadWrite(pipelineRole);
+        backendPipeline = createBackendPipeline(pipelineArtifactBucket, codeBuildProject, pipelineRole);
     }
 
     private Pipeline createBackendPipeline(Bucket pipelineArtifactBucket, PipelineProject codeBuildProject, Role pipelineRole) {
@@ -52,6 +54,7 @@ public class BackendPipelineStack extends Stack {
                         .repo("sakai-lambda-slave")
                         .branch(stageConfig.branch())
                         .connectionArn(stageConfig.connectionArn())
+                        .triggerOnPush(true)
                         .output(sourceOutput)
                         .build()))
                 .build();
@@ -79,7 +82,7 @@ public class BackendPipelineStack extends Stack {
         return new Pipeline(this, "BackendPipelineId", pipelineProps);
     }
 
-    private Role createPipelineRole(PipelineProject codebuildProject) {
+    private Role createPipelineRole(PipelineProject codebuildProject, Role lambdaArtifactBucketRole) {
         // Berechtigung für Pipeline, um CodeBuild zu starten.
         PolicyStatement startCodeBuildPermissions = PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
@@ -88,15 +91,22 @@ public class BackendPipelineStack extends Stack {
                 .build();
 
         // Berechtigung, um zu deployen.
-        PolicyStatement deployPermissions = PolicyStatement.Builder.create()
+//        PolicyStatement deployPermissions = PolicyStatement.Builder.create()
+//                .effect(Effect.ALLOW)
+//                .actions(List.of(
+//                        "lambda:GetFunction",
+//                        "lambda:GetFunctionConfiguration",
+//                        "lambda:UpdateFunctionConfiguration",
+//                        "lambda:UpdateFunctionCode"
+//                ))
+//                .resources(List.of("*"))
+//                .build();
+
+        // Berechtigung, um eine Berechtigung zuzuweisen.
+        PolicyStatement passPermissionToCodeBuild = PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
-                .actions(List.of(
-                        "lambda:GetFunction",
-                        "lambda:GetFunctionConfiguration",
-                        "lambda:UpdateFunctionConfiguration",
-                        "lambda:UpdateFunctionCode"
-                ))
-                .resources(List.of("*"))
+                .actions(List.of("iam:PassRole"))
+                .resources(List.of(lambdaArtifactBucketRole.getRoleArn()))
                 .build();
 
         RoleProps pipelineRoleProps = RoleProps.builder()
@@ -107,14 +117,15 @@ public class BackendPipelineStack extends Stack {
         Role pipelineRole = new Role(this, "PipelineRoleId", pipelineRoleProps);
 
         pipelineRole.addToPolicy(startCodeBuildPermissions);
-        pipelineRole.addToPolicy(deployPermissions);
+        pipelineRole.addToPolicy(passPermissionToCodeBuild);
+//        pipelineRole.addToPolicy(deployPermissions);
 
         return pipelineRole;
     }
 
     private PipelineProject createPipelineProject(Role lambdaArtifactBucketRole) {
         BuildEnvironment projectEnvironment = BuildEnvironment.builder()
-                .computeType(ComputeType.SMALL)
+                .computeType(ComputeType.MEDIUM)
                 .buildImage(LinuxBuildImage.STANDARD_7_0)
                 .build();
 
