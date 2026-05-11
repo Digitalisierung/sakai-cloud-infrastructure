@@ -11,19 +11,19 @@ public final class StageDecisions {
         super();
     }
 
-    public static RemovalPolicy getRemovalPolicy(String stage) {
+    public static RemovalPolicy __getRemovalPolicy(String stage) {
         return "prod".equalsIgnoreCase(stage) ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
     }
 
-    public static boolean enablePitr(String stage) {
+    public static boolean __enablePitr(String stage) {
         return "prod".equalsIgnoreCase(stage);
     }
 
-    public static boolean enableDataTrace(String stage) {
+    public static boolean __enableDataTrace(String stage) {
         return !"dev".equalsIgnoreCase(stage);
     }
 
-    public static CorsOptions getCorsOptions(String stage) {
+    public static CorsOptions __getCorsOptions(String stage) {
         return switch (stage) {
             case "dev", "Dev", "DEV" -> CorsOptions.builder()
                     .allowOrigins(Cors.ALL_ORIGINS) // Später mit List.of()

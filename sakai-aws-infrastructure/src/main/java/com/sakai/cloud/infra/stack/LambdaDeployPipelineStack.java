@@ -19,14 +19,14 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
-public class BackendPipelineStack extends Stack {
+public class LambdaDeployPipelineStack extends Stack {
     private final StageConfigurator stageConfig;
     private Bucket lambdaArtifactBucket;
     private Pipeline backendPipeline;
 
     // TODO: buildspec.yaml muss im Backend-Repo (sakai-lambda-slave) vorhanden sein.
     // Alternativ: BuildSpec.fromObject() für Inline-Definition verwenden.
-    public BackendPipelineStack(Construct scope, String id, StackProps stackProps, StageConfigurator stageConfig) {
+    public LambdaDeployPipelineStack(Construct scope, String id, StackProps stackProps, StageConfigurator stageConfig) {
         super(scope, id, stackProps);
 
         this.stageConfig = stageConfig;
@@ -43,7 +43,7 @@ public class BackendPipelineStack extends Stack {
     }
 
     private Pipeline createBackendPipeline(Bucket pipelineArtifactBucket, PipelineProject codeBuildProject, Role pipelineRole) {
-        Artifact sourceOutput = new Artifact("SourceOutputArtifact");
+        Artifact sourceOutput = new Artifact("BackendSourceOutputArtifact");
 //        Artifact buildOutput = new Artifact("BuildOutputArtifact");
 
         StageOptions sourceStage = StageOptions.builder()
@@ -148,7 +148,7 @@ public class BackendPipelineStack extends Stack {
         PolicyStatement policyStatement = PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
                 .actions(List.of("s3:GetObject", "s3:PutObject"))
-                .resources(List.of(lambdaArtifactBucket.getBucketArn() + "/*"))
+                .resources(List.of(lambdaArtifactBucket.getBucketArn(), lambdaArtifactBucket.getBucketArn() + "/*"))
                 .build();
 
         RoleProps roleProps = RoleProps.builder()

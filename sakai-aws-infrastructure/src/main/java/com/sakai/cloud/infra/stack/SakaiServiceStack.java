@@ -60,7 +60,7 @@ public class SakaiServiceStack extends Stack {
 
         // === DynamoDB TABLE ===
         //inventoryTable = createDynamoDbTable(stage);
-        inventoryTable = dbTableFactory.createDynamoDbTable(this, "InventoryTableId", stageConfig.stageName());
+        inventoryTable = dbTableFactory.createDynamoDbTable(this, "InventoryTableId", stageConfig);
 
         // === S3 Artifact BUCKET ===
         final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
@@ -74,7 +74,7 @@ public class SakaiServiceStack extends Stack {
         ApiGatewayConfigurator apiGatewayConfigurator = new ApiGatewayConfigurator(
                 "InventoryRestApiGateway",
                 "API for Inventory Management System",
-                stageConfig.stageName()
+                stageConfig
         );
         final RestApi lambdaRestApi = apiGatewayFactory.createApiGateway(this, "ApiGatewayId", apiGatewayConfigurator);
 
@@ -83,7 +83,9 @@ public class SakaiServiceStack extends Stack {
                 "com.sakai.inventory.api.handler.ListArticlesHandler::handleRequest",
                 lambdaExecRole,
                 Code.fromBucket(artifactBucket, "asset-service-lambda.jar"),
-                Map.of()
+                Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                )
         );
         // final Function listArticlesFunction = createLambdaFunction(lambdaExecRole, artifactBucket);
         final Function listArticlesFunction = functionFactory.createLambdaFunction(this, "ListArticlesHandlerFunctionId", lambdaFunctionConfig);

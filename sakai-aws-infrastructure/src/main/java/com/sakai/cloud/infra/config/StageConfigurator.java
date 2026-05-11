@@ -1,6 +1,8 @@
 package com.sakai.cloud.infra.config;
 
 import software.amazon.awscdk.RemovalPolicy;
+import software.amazon.awscdk.services.apigateway.Cors;
+import software.amazon.awscdk.services.apigateway.CorsOptions;
 
 import java.util.List;
 
@@ -16,7 +18,8 @@ public record StageConfigurator(
         Integer lambdaMemorySize,
         String logLevel,
         List<String> corsAllowedOrigins,
-        String cdkSynthCommand
+        String cdkSynthCommand,
+        CorsOptions stageOptions
 ) {
     public static StageConfigurator fromStage(String stage) {
         return switch (stage) {
@@ -32,7 +35,12 @@ public record StageConfigurator(
                     1024,
                     "DEBUG",
                     List.of("*"),
-                    "cdk synth -c stage=Dev"
+                    "cdk synth -c stage=Dev",
+                    CorsOptions.builder()
+                            .allowOrigins(Cors.ALL_ORIGINS) // Später mit List.of()
+                            .allowMethods(Cors.ALL_METHODS)
+                            .allowHeaders(Cors.DEFAULT_HEADERS)
+                            .build()
             );
             case "test", "Test", "TEST" -> new StageConfigurator(
                     "Test",
@@ -46,7 +54,12 @@ public record StageConfigurator(
                     1024,
                     "INFO",
                     List.of("*"),
-                    "cdk synth -c stage=Test"
+                    "cdk synth -c stage=Test",
+                    CorsOptions.builder()
+                            .allowOrigins(List.of("*")) // TODO: Warum? Ist das richtig? Ist es notwendig??
+                            .allowMethods(Cors.ALL_METHODS)
+                            .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
+                            .build()
             );
             case "prod", "Prod", "PROD" -> new StageConfigurator(
                     "Prod",
@@ -60,7 +73,12 @@ public record StageConfigurator(
                     1024,
                     "ERROR",
                     List.of("*"),
-                    "cdk synth -c stage=Prod"
+                    "cdk synth -c stage=Prod",
+                    CorsOptions.builder()
+                            .allowOrigins(List.of("*")) // TODO: Warum? Ist das richtig? Ist es notwendig?? (auf bekannte Domains einschränken)
+                            .allowMethods(Cors.ALL_METHODS)
+                            .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
+                            .build()
             );
             default -> throw new IllegalArgumentException("Invalid stage: " + stage);
         };
@@ -81,7 +99,12 @@ public record StageConfigurator(
                 1024,
                 "DEBUG",
                 List.of("*"),
-                "cdk synth -c branch=" + branch
+                "cdk synth -c branch=" + branch,
+                CorsOptions.builder()
+                        .allowOrigins(Cors.ALL_ORIGINS) // Später mit List.of()
+                        .allowMethods(Cors.ALL_METHODS)
+                        .allowHeaders(Cors.DEFAULT_HEADERS)
+                        .build()
         );
     }
 
