@@ -22,7 +22,6 @@ import software.amazon.awscdk.services.lambda.*;
 import software.amazon.awscdk.services.lambda.Runtime;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
-import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -32,7 +31,7 @@ public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
     // sakai-lambda-artifacts
-    private String artifactBucketName = "sakai-lambda-artifacts-dev";
+    private String artifactBucketName = "sakai-lambda-artifacts";
     // asset-service-1.0-SNAPSHOT.jar
     //private String artifactObjectKey;
     private Table inventoryTable;
@@ -66,16 +65,15 @@ public class SakaiServiceStack extends Stack {
         // === LAMBDA FUNCTION for ListArticles Handler ===
 
         // Versuche den Key aus SSM zu lesen...
-        String objectKey = null;
-        String parameterName = "";
-        try {
-            objectKey = StringParameter.valueForStringParameter(this, parameterName);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        String parameterName = "<coming-soon>";
+//        try {
+//            objectKey = StringParameter.valueForStringParameter(this, parameterName);
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
         FunctionProps lambdaFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
-                .code(Code.fromBucket(artifactBucket, objectKey))
+                .code(Code.fromBucket(artifactBucket, "asset-service-lambda.jar"))
                 .description("Gibt eine Liste aller Artikel zurück.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
