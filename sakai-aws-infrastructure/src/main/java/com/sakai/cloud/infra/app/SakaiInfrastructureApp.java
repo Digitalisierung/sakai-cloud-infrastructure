@@ -1,6 +1,8 @@
 package com.sakai.cloud.infra.app;
 
+import com.sakai.cloud.infra.config.StageConfigurator;
 import com.sakai.cloud.infra.stack.InfrastructurePipelineStack;
+import com.sakai.cloud.infra.stack.LambdaDeployPipelineStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;
@@ -18,20 +20,43 @@ public class SakaiInfrastructureApp {
         LOGGER.info("CDK_DEFAULT_ACCOUNT: {}", defaultAccount);
         LOGGER.info("CDK_DEFAULT_REGION: {}", defaultRegion);
 
+        // Stage Configurator
+        String stageName = (String) app.getNode().tryGetContext("stage");
+        if (stageName == null || stageName.isBlank()) stageName = System.getenv("SAKAI_PROJECT_STAGE");
+        if (stageName == null || stageName.isBlank()) stageName = "local-env";
+
+        StageConfigurator stageConfig;
+        try {
+            stageConfig = StageConfigurator.fromStage(stageName);
+        } catch (IllegalArgumentException e) {
+            LOGGER.error(e.getMessage(), e);
+            String branch = (String) app.getNode().tryGetContext("branch");
+            stageConfig = StageConfigurator.fromLocal(branch);
+        }
+
         final Environment env = Environment.builder()
                 .account(defaultAccount)
                 .region(defaultRegion)
                 .build();
 
-        final StackProps stackProps = StackProps.builder()
-                .description("SAKAI Service. Pipeline-Stack für Backend-Infrastruktur (APIGateway, Lambda, DynamoDB) für SAKAI Khachi — ein Inventory Management System.")
+        // Lambda Deploy
+        final StackProps backendServiceStackProps = StackProps.builder()
+                .description("SAKAI Service. Pipeline für Lambda Deploy — Inventory Management System.")
                 .env(env)
                 .build();
 
-        final InfrastructurePipelineStack infrastructurePipelineStack = new InfrastructurePipelineStack(app, "SakaiPipelineStackId", stackProps);
+        final LambdaDeployPipelineStack lambdaDeployPipelineStack = new LambdaDeployPipelineStack(app, "SakaiLambdaDeployPipelineStackId", backendServiceStackProps, stageConfig);
+        lambdaDeployPipelineStack.initializeStack();
 
-//        InfrastructureStack sakaiInfraStack = new InfrastructureStack(app, "SakaiInfraStackId", stackProps);
-//        sakaiInfraStack.initializeStack();
+        // AWS Infrastruktur
+        final StackProps infraStackProps = StackProps.builder()
+                .description("SAKAI Infrastructure. Pipeline für AWS Infrastruktur — Inventory Management System.")
+                .env(env)
+                .build();
+
+        final InfrastructurePipelineStack infrastructurePipelineStack = new InfrastructurePipelineStack(app, "SakaiAwsInfrastructurePipelineStackId", infraStackProps, stageConfig);
+        infrastructurePipelineStack.initializeStack();
+
         app.synth();
     }
 }

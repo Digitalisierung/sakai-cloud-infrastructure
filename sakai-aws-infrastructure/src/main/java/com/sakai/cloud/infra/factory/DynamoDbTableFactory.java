@@ -1,15 +1,15 @@
 package com.sakai.cloud.infra.factory;
 
-import com.sakai.cloud.infra.util.StageDecisions;
+import com.sakai.cloud.infra.config.StageConfigurator;
 import software.amazon.awscdk.services.dynamodb.*;
 import software.constructs.Construct;
 
 public class DynamoDbTableFactory {
-    public Table createDynamoDbTable(Construct scope, String id, String stage) {
-        return new Table(scope, id, createTableProps(stage));
+    public Table createDynamoDbTable(Construct scope, String id, StageConfigurator stageConfig) {
+        return new Table(scope, id, createTableProps(stageConfig));
     }
 
-    private TableProps createTableProps(String stage) {
+    private TableProps createTableProps(StageConfigurator stageConfig) {
         return TableProps.builder()
                 .partitionKey(Attribute.builder()
                         .name("partitionKey")
@@ -20,9 +20,9 @@ public class DynamoDbTableFactory {
                         .type(AttributeType.STRING)
                         .build())
                 .billingMode(BillingMode.PAY_PER_REQUEST)
-                .removalPolicy(StageDecisions.getRemovalPolicy(stage))
+                .removalPolicy(stageConfig.removalPolicy())
                 .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
-                        .pointInTimeRecoveryEnabled(StageDecisions.enablePitr(stage))
+                        .pointInTimeRecoveryEnabled(stageConfig.dynamoDbPitrEnabled())
                         .build())
                 .build();
     }

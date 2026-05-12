@@ -8,9 +8,10 @@ public record StageConfigurator(
         String stageName,
         String branch,
         String connectionArn,
-        RemovalPolicy dynamoDbRemovalPolicy,
+        RemovalPolicy removalPolicy,
         Boolean dynamoDbPitrEnabled,
         Boolean apiGatewayDataTraceEnabled,
+        Boolean autoDeleteObjects,
         Integer lambdaTimeout,
         Integer lambdaMemorySize,
         String logLevel,
@@ -26,6 +27,7 @@ public record StageConfigurator(
                     RemovalPolicy.DESTROY,
                     false,
                     true,
+                    true,
                     30,
                     1024,
                     "DEBUG",
@@ -39,6 +41,7 @@ public record StageConfigurator(
                     RemovalPolicy.RETAIN,
                     true,
                     false,
+                    true,
                     30,
                     1024,
                     "INFO",
@@ -51,6 +54,7 @@ public record StageConfigurator(
                     System.getenv("CONNECTION_ARN_PROD_ACCOUNT"),
                     RemovalPolicy.RETAIN,
                     true,
+                    false,
                     false,
                     30,
                     1024,
@@ -72,11 +76,28 @@ public record StageConfigurator(
                 RemovalPolicy.DESTROY,
                 false,
                 true,
+                true,
                 30,
                 1024,
                 "DEBUG",
                 List.of("*"),
                 "cdk synth -c branch=" + branch
         );
+    }
+
+    public boolean isLocal() {
+        return !isDev() && !isProd() && !isTest();
+    }
+
+    public boolean isProd() {
+        return stageName.equalsIgnoreCase("prod");
+    }
+
+    public boolean isDev() {
+        return stageName.equalsIgnoreCase("dev");
+    }
+
+    public boolean isTest() {
+        return stageName.equalsIgnoreCase("test");
     }
 }

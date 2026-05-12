@@ -18,13 +18,23 @@ import java.util.Map;
 public class InfrastructurePipelineStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(InfrastructurePipelineStack.class);
 
+    private final StageConfigurator stageConfig;
+    private final StackProps stackProps;
+
+    // TODO: zentraler Konfigurationsort (oder Datei) für ORG und REPO überlegen.
     //private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
-    private static final String REPO_STRING = "Digitalisierung/sakai-cloud-infrastructure";
+    private static final String ORGANISATION = "Digitalisierung";
+    private static final String REPO = "sakai-cloud-infrastructure";
     //private static final String BRANCH = "develop";
 
-    public InfrastructurePipelineStack(Construct app, String id, StackProps stackProps) {
+    public InfrastructurePipelineStack(Construct app, String id, StackProps stackProps, StageConfigurator stageConfig) {
         super(app, id, stackProps);
 
+        this.stackProps = stackProps;
+        this.stageConfig = stageConfig;
+    }
+
+    public void initializeStack() {
         final Environment env = stackProps.getEnv();
 
         if (env == null || env.getAccount() == null || env.getRegion() == null) {
@@ -36,7 +46,7 @@ public class InfrastructurePipelineStack extends Stack {
         // S3 Bucket zum Speichern des Pipeline's Artifakt.
         final Bucket pipelineArtBucket = createArtifactBucket();
 
-        final StageConfigurator stageConfig = initializeStageConfiguration();
+        //final StageConfigurator stageConfig = initializeStageConfiguration();
         LOGGER.info("Stage name: {}, branch: {}", stageConfig.stageName(), stageConfig.branch());
         LOGGER.info("Connection arn: {}", stageConfig.connectionArn());
 
@@ -62,20 +72,6 @@ public class InfrastructurePipelineStack extends Stack {
         // codePipeline.addStage(null);
     }
 
-    private StageConfigurator initializeStageConfiguration() {
-        String stageName = (String) this.getNode().tryGetContext("stage");
-        if (stageName == null || stageName.isBlank()) stageName = System.getenv("SAKAI_PROJECT_STAGE");
-        if (stageName == null || stageName.isBlank()) stageName = "local-env";
-
-        try {
-            return StageConfigurator.fromStage(stageName);
-        } catch (IllegalArgumentException e) {
-            LOGGER.error(e.getMessage(), e);
-            String branch = (String) this.getNode().tryGetContext("branch");
-            return StageConfigurator.fromLocal(branch);
-        }
-    }
-
     private Bucket createArtifactBucket() {
         BucketProps artBucketProps = BucketProps.builder()
                 .encryption(BucketEncryption.S3_MANAGED)
@@ -98,7 +94,7 @@ public class InfrastructurePipelineStack extends Stack {
                 .triggerOnPush(true)
                 .build();
 
-        final CodePipelineSource pipelineSource = CodePipelineSource.connection(REPO_STRING, stageConfig.branch(), conSourceOptions);
+        final CodePipelineSource pipelineSource = CodePipelineSource.connection(ORGANISATION + "/" + REPO, stageConfig.branch(), conSourceOptions);
 
         final ShellStepProps shellStepProps = ShellStepProps.builder()
                 .input(pipelineSource)
