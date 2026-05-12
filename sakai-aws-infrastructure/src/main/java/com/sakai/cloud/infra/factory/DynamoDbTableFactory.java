@@ -24,6 +24,9 @@ public class DynamoDbTableFactory {
                 .pointInTimeRecoverySpecification(PointInTimeRecoverySpecification.builder()
                         .pointInTimeRecoveryEnabled(stageConfig.dynamoDbPitrEnabled())
                         .build())
+                .tableName("InventoryTable-" + stageConfig.stageName())
+                // Hinweis: TableProps hat keine direkte .description() Methode im CDK für Java.
+                // Beschreibungen werden oft über Tags oder in der Dokumentation gelöst.
                 .build();
     }
 }

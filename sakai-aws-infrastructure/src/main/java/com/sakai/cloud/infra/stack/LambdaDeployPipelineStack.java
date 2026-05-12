@@ -14,6 +14,9 @@ import software.amazon.awscdk.services.codepipeline.actions.CodeBuildAction;
 import software.amazon.awscdk.services.codepipeline.actions.CodeStarConnectionsSourceAction;
 import software.amazon.awscdk.services.iam.*;
 import software.amazon.awscdk.services.s3.*;
+import software.amazon.awscdk.services.ssm.ParameterDataType;
+import software.amazon.awscdk.services.ssm.StringParameter;
+import software.amazon.awscdk.services.ssm.StringParameterProps;
 import software.constructs.Construct;
 
 import java.util.List;
@@ -23,6 +26,9 @@ public class LambdaDeployPipelineStack extends Stack {
     private final StageConfigurator stageConfig;
     private Bucket lambdaArtifactBucket;
     private Pipeline backendPipeline;
+
+    private StringParameter bucketNameParameter;
+    private StringParameter jarKeyParameter;
 
     // TODO: eine Lösung überlegen - zentraler Konfigurationsort (oder Datei) für ORG und REPO.
     private static final String ORGANISATION = "Digitalisierung";
@@ -38,12 +44,40 @@ public class LambdaDeployPipelineStack extends Stack {
 
     public void initializeStack() {
         lambdaArtifactBucket = createLambdaArtifactBucket();
+        initializeStringParams();
         Bucket pipelineArtifactBucket = createPipelineArtifactBucket();
         Role lambdaArtifactBucketRole = createArtifactBucketRole();
         PipelineProject codeBuildProject = createPipelineProject(lambdaArtifactBucketRole);
         Role pipelineRole = createPipelineRole(codeBuildProject, lambdaArtifactBucketRole);
         pipelineArtifactBucket.grantReadWrite(pipelineRole);
         backendPipeline = createBackendPipeline(pipelineArtifactBucket, codeBuildProject, pipelineRole);
+    }
+
+    private void initializeStringParams() {
+        StringParameterProps stringParamProps = StringParameterProps.builder()
+                .parameterName("/sakai/" + stageConfig.stageName() + "/lambda/artifact-bucket-name")
+                .stringValue(lambdaArtifactBucket.getBucketName())
+                .dataType(ParameterDataType.TEXT)
+                .build();
+
+        this.bucketNameParameter = new StringParameter(this, "BucketNameParameterId", stringParamProps);
+
+
+        StringParameterProps jarKeyParamProps = StringParameterProps.builder()
+                .parameterName("/sakai/" + stageConfig.stageName() + "/lambda/artifact-key")
+                .stringValue("asset-service-lambda.jar")
+                .dataType(ParameterDataType.TEXT)
+                .build();
+
+        this.jarKeyParameter = new StringParameter(this, "JarKeyParameterID", jarKeyParamProps);
+
+        /*
+        buildspec.yaml im Backend-Repo diese SSM-Parameter nach erfolgreichem Upload setzen muss:
+        post_build:
+          commands:
+            - aws ssm put-parameter --name "/sakai/${STAGE_NAME}/lambda/artifact-bucket-name" --value "${S3_LAMBDA_ART_BUCKET}" --type String --overwrite
+            - aws ssm put-parameter --name "/sakai/${STAGE_NAME}/lambda/artifact-key" --value "asset-service-lambda.jar" --type String --overwrite
+         */
     }
 
     public Bucket getLambdaArtifactBucket() {
@@ -118,7 +152,7 @@ public class LambdaDeployPipelineStack extends Stack {
                 .build();
 
         RoleProps pipelineRoleProps = RoleProps.builder()
-                .description("SAKAI Project. Pipeline role for (lambda) backend pipeline.")
+                .description("IAM-Rolle für die CodePipeline des Lambda-Deployments.")
                 .assumedBy(new ServicePrincipal("codepipeline.amazonaws.com"))
                 .build();
 
@@ -138,7 +172,7 @@ public class LambdaDeployPipelineStack extends Stack {
                 .build();
 
         PipelineProjectProps projectProps = PipelineProjectProps.builder()
-                .description("Backend Pipeline Project" + this.getStackName())
+                .description("CodeBuild-Projekt für den Bau und Deployment der Lambda-Funktion des Inventory-Services.")
                 .environment(projectEnvironment)
                 .environmentVariables(Map.of(
                         "S3_LAMBDA_ART_BUCKET", BuildEnvironmentVariable.builder()
@@ -155,12 +189,16 @@ public class LambdaDeployPipelineStack extends Stack {
     private Role createArtifactBucketRole() {
         PolicyStatement policyStatement = PolicyStatement.Builder.create()
                 .effect(Effect.ALLOW)
-                .actions(List.of("s3:GetObject", "s3:PutObject"))
-                .resources(List.of(lambdaArtifactBucket.getBucketArn(), lambdaArtifactBucket.getBucketArn() + "/*"))
+                .actions(List.of("s3:GetObject", "s3:PutObject", "ssm:PutParameter"))
+                .resources(List.of(
+                        lambdaArtifactBucket.getBucketArn(),
+                        lambdaArtifactBucket.getBucketArn() + "/*",
+                        bucketNameParameter.getParameterArn(),
+                        jarKeyParameter.getParameterArn()))
                 .build();
 
         RoleProps roleProps = RoleProps.builder()
-                .description("SAKAI Project. Role to handle the artifact bucket access for CodeBuild.")
+                .description("IAM-Rolle für den Zugriff auf den S3-Bucket mit Lambda-Artefakten durch CodeBuild.")
                 .assumedBy(new ServicePrincipal("codebuild.amazonaws.com"))
                 .build();
 
