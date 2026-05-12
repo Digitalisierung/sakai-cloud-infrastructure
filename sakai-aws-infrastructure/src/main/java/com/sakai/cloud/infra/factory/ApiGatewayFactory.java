@@ -2,31 +2,41 @@ package com.sakai.cloud.infra.factory;
 
 import com.sakai.cloud.infra.config.ApiGatewayConfigurator;
 import com.sakai.cloud.infra.config.StageConfigurator;
-import software.amazon.awscdk.services.apigateway.MethodLoggingLevel;
-import software.amazon.awscdk.services.apigateway.RestApi;
-import software.amazon.awscdk.services.apigateway.RestApiProps;
-import software.amazon.awscdk.services.apigateway.StageOptions;
+import software.amazon.awscdk.services.apigateway.*;
 import software.constructs.Construct;
+
+import java.util.List;
 
 public class ApiGatewayFactory {
     private StageOptions getStageOptions(StageConfigurator stageConfig) {
         return StageOptions.builder()
                 .stageName(stageConfig.stageName())
-                .dataTraceEnabled(/*StageDecisions.enableDataTrace(stageName)*/ stageConfig.apiGatewayDataTraceEnabled())
+                .dataTraceEnabled(stageConfig.apiGatewayDataTraceEnabled())
                 .loggingLevel(MethodLoggingLevel.ERROR)
                 .build();
     }
 
-//    private CorsOptions getCorsOptions(String stage) {
-//        return StageDecisions.getCorsOptions(stage);
-//    }
+    private CorsOptions getCorsOptions(StageConfigurator stageConfig) {
+        return switch (stageConfig.stageName()) {
+            case "prod", "Prod", "PROD" -> CorsOptions.builder()
+                    .allowOrigins(List.of("*")) // TODO: Warum? Ist das richtig? Ist es notwendig?? (auf bekannte Domains einschränken)
+                    .allowMethods(Cors.ALL_METHODS)
+                    .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
+                    .build();
+            default -> CorsOptions.builder()
+                    .allowOrigins(Cors.ALL_ORIGINS) // Später nur für dev (Test wie Prod)
+                    .allowMethods(Cors.ALL_METHODS)
+                    .allowHeaders(Cors.DEFAULT_HEADERS)
+                    .build();
+        };
+    }
 
     private RestApiProps getRestApiProps(ApiGatewayConfigurator apiGatewayConfigurator) {
         return RestApiProps.builder()
                 .restApiName(apiGatewayConfigurator.restApiName())
                 .description(apiGatewayConfigurator.description())
                 .deployOptions(getStageOptions(apiGatewayConfigurator.stageConfig()))
-                .defaultCorsPreflightOptions(apiGatewayConfigurator.stageConfig().stageOptions())
+                .defaultCorsPreflightOptions(getCorsOptions(apiGatewayConfigurator.stageConfig()))
                 .cloudWatchRole(true)
                 .build();
     }

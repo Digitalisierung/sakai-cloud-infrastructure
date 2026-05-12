@@ -24,6 +24,10 @@ public class LambdaDeployPipelineStack extends Stack {
     private Bucket lambdaArtifactBucket;
     private Pipeline backendPipeline;
 
+    // TODO: eine Lösung überlegen - zentraler Konfigurationsort (oder Datei) für ORG und REPO.
+    private static final String ORGANISATION = "Digitalisierung";
+    private static final String REPO = "sakai-lambda-slave";
+
     // TODO: buildspec.yaml muss im Backend-Repo (sakai-lambda-slave) vorhanden sein.
     // Alternativ: BuildSpec.fromObject() für Inline-Definition verwenden.
     public LambdaDeployPipelineStack(Construct scope, String id, StackProps stackProps, StageConfigurator stageConfig) {
@@ -42,6 +46,10 @@ public class LambdaDeployPipelineStack extends Stack {
         backendPipeline = createBackendPipeline(pipelineArtifactBucket, codeBuildProject, pipelineRole);
     }
 
+    public Bucket getLambdaArtifactBucket() {
+        return lambdaArtifactBucket;
+    }
+
     private Pipeline createBackendPipeline(Bucket pipelineArtifactBucket, PipelineProject codeBuildProject, Role pipelineRole) {
         Artifact sourceOutput = new Artifact("BackendSourceOutputArtifact");
 //        Artifact buildOutput = new Artifact("BuildOutputArtifact");
@@ -50,8 +58,8 @@ public class LambdaDeployPipelineStack extends Stack {
                 .stageName("Source")
                 .actions(List.of(CodeStarConnectionsSourceAction.Builder.create()
                         .actionName("GitHub_Source")
-                        .owner("Digitalisierung")
-                        .repo("sakai-lambda-slave")
+                        .owner(ORGANISATION)
+                        .repo(REPO)
                         .branch(stageConfig.branch())
                         .connectionArn(stageConfig.connectionArn())
                         .triggerOnPush(true)

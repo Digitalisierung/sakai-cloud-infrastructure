@@ -21,8 +21,10 @@ public class InfrastructurePipelineStack extends Stack {
     private final StageConfigurator stageConfig;
     private final StackProps stackProps;
 
+    // TODO: zentraler Konfigurationsort (oder Datei) für ORG und REPO überlegen.
     //private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
-    private static final String REPO_STRING = "Digitalisierung/sakai-cloud-infrastructure";
+    private static final String ORGANISATION = "Digitalisierung";
+    private static final String REPO = "sakai-cloud-infrastructure";
     //private static final String BRANCH = "develop";
 
     public InfrastructurePipelineStack(Construct app, String id, StackProps stackProps, StageConfigurator stageConfig) {
@@ -92,7 +94,7 @@ public class InfrastructurePipelineStack extends Stack {
                 .triggerOnPush(true)
                 .build();
 
-        final CodePipelineSource pipelineSource = CodePipelineSource.connection(REPO_STRING, stageConfig.branch(), conSourceOptions);
+        final CodePipelineSource pipelineSource = CodePipelineSource.connection(ORGANISATION + "/" + REPO, stageConfig.branch(), conSourceOptions);
 
         final ShellStepProps shellStepProps = ShellStepProps.builder()
                 .input(pipelineSource)
