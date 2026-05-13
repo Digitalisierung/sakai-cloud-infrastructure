@@ -133,8 +133,6 @@ public class InfrastructurePipelineStack extends Stack {
                         "STAGE_NAME", stageConfig.stageName(),
                         "SAKAI_PROJECT_STAGE", stageConfig.stageName(),
                         "CONNECTION_ARN_DEV_ACCOUNT", stageConfig.connectionArn(),
-                        "CONNECTION_ARN_TEST_ACCOUNT", stageConfig.connectionArn(),
-                        "CONNECTION_ARN_PROD_ACCOUNT", stageConfig.connectionArn(),
                         "CONNECTION_ARN_SANDBOX_ACCOUNT", stageConfig.connectionArn()
                 ))
                 .build();

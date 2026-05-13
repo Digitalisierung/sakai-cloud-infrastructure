@@ -1,5 +1,7 @@
 package com.sakai.cloud.infra.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.RemovalPolicy;
 
 import java.util.List;
@@ -23,6 +25,7 @@ public record StageConfigurator(
         List<String> corsAllowedOrigins,
         String cdkSynthCommand
 ) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StageConfigurator.class);
     /**
      * Erstellt einen StageConfigurator für einen der vordefinierten Stages (dev, test, prod).
      *
@@ -74,20 +77,6 @@ public record StageConfigurator(
                     List.of("*"),
                     "cdk synth -c stage=Prod"
             );
-            case "local-dev" -> new StageConfigurator(
-                    "local-dev",
-                    stage, // ist Branch
-                    System.getenv("CONNECTION_ARN_SANDBOX_ACCOUNT"),
-                    RemovalPolicy.DESTROY,
-                    false,
-                    true,
-                    true,
-                    30,
-                    1024,
-                    "DEBUG",
-                    List.of("*"),
-                    "cdk synth -c branch=" + stage
-            );
             default -> throw new IllegalArgumentException("Invalid stage: " + stage);
         };
     }
@@ -100,11 +89,12 @@ public record StageConfigurator(
      * @return Ein konfigurierter StageConfigurator für die lokale Entwicklung.
      * @throws IllegalArgumentException Wenn der Branch-Name null oder leer ist.
      */
-    public static StageConfigurator __fromLocal(String branch) {
+    public static StageConfigurator fromLocal(String branch) {
+        LOGGER.info("Branch= {}", branch);
         if (branch == null || branch.isBlank()) throw new IllegalArgumentException("Invalid branch name: " + branch);
 
         return new StageConfigurator(
-                "local-dev",
+                "local-env",
                 branch,
                 System.getenv("CONNECTION_ARN_SANDBOX_ACCOUNT"),
                 RemovalPolicy.DESTROY,
