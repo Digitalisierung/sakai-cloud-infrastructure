@@ -146,7 +146,6 @@ public class InfrastructurePipelineStack extends Stack {
         final CodePipelineProps codePipelineProps = CodePipelineProps.builder()
                 .synth(shellStep)
                 .artifactBucket(artifactBucket)
-                .pipelineName("InfrastructurePipelineStack-" + stageConfig.stageName())
                 .selfMutation(true)
                 .codeBuildDefaults(codeBuildOptions)
                 .synthCodeBuildDefaults(codeBuildOptions)
