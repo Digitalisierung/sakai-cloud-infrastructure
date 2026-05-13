@@ -7,6 +7,11 @@ import software.constructs.Construct;
 
 import java.util.List;
 
+/**
+ * Factory-Klasse zur Erstellung von Amazon API Gateway Ressourcen.
+ * Übernimmt die Konfiguration von Stage-Optionen, CORS und API-Eigenschaften
+ * basierend auf dem übergebenen {@link ApiGatewayConfigurator}.
+ */
 public class ApiGatewayFactory {
     private StageOptions getStageOptions(StageConfigurator stageConfig) {
         return StageOptions.builder()
@@ -41,6 +46,14 @@ public class ApiGatewayFactory {
                 .build();
     }
 
+    /**
+     * Erstellt eine voll konfigurierte RestApi-Instanz.
+     *
+     * @param scope                  Der CDK-Scope (z. B. ein Stack).
+     * @param id                     Die logische ID der Ressource.
+     * @param apiGatewayConfigurator Die Konfigurationsdaten für das API Gateway.
+     * @return Eine neue RestApi-Instanz.
+     */
     public RestApi createApiGateway(Construct scope, String id, ApiGatewayConfigurator apiGatewayConfigurator) {
         return new RestApi(scope, id, getRestApiProps(apiGatewayConfigurator));
     }

@@ -4,6 +4,11 @@ import software.amazon.awscdk.RemovalPolicy;
 
 import java.util.List;
 
+/**
+ * Der StageConfigurator hält alle stag-spezifischen Einstellungen für die Infrastruktur.
+ * Er bietet statische Factory-Methoden, um Konfigurationen für vordefinierte Stages (Dev, Test, Prod)
+ * oder für lokale Umgebungen basierend auf Git-Branches zu erstellen.
+ */
 public record StageConfigurator(
         String stageName,
         String branch,
@@ -18,6 +23,13 @@ public record StageConfigurator(
         List<String> corsAllowedOrigins,
         String cdkSynthCommand
 ) {
+    /**
+     * Erstellt einen StageConfigurator für einen der vordefinierten Stages (dev, test, prod).
+     *
+     * @param stage Der Name des Stages (Groß-/Kleinschreibung wird ignoriert).
+     * @return Ein konfigurierter StageConfigurator.
+     * @throws IllegalArgumentException Wenn der übergebene Stage-Name ungültig ist.
+     */
     public static StageConfigurator fromStage(String stage) {
         return switch (stage) {
             case "dev", "Dev", "DEV" -> new StageConfigurator(
@@ -66,6 +78,14 @@ public record StageConfigurator(
         };
     }
 
+    /**
+     * Erstellt einen StageConfigurator für die lokale Entwicklung basierend auf einem Branch-Namen.
+     * Verwendet standardmäßig Sandbox-Einstellungen und Zerstörungsrichtlinien.
+     *
+     * @param branch Der Name des Git-Branches.
+     * @return Ein konfigurierter StageConfigurator für die lokale Entwicklung.
+     * @throws IllegalArgumentException Wenn der Branch-Name null oder leer ist.
+     */
     public static StageConfigurator fromLocal(String branch) {
         if (branch == null || branch.isBlank()) throw new IllegalArgumentException("Invalid branch name: " + branch);
 

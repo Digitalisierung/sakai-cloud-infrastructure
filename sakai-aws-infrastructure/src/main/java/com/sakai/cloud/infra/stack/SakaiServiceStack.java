@@ -29,6 +29,11 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Der Stack für die eigentlichen Backend-Services des Sakai Inventory Management Systems.
+ * Er erstellt und konfiguriert die primären Ressourcen wie die DynamoDB-Tabelle,
+ * das API Gateway und die Lambda-Funktionen für die Geschäftslogik.
+ */
 public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
@@ -53,6 +58,10 @@ public class SakaiServiceStack extends Stack {
         Tags.of(this).add("Service", "InventoryManagement");
     }
 
+    /**
+     * Initialisiert den Stack, indem er die DynamoDB-Tabelle, die IAM-Rollen,
+     * die Lambda-Funktionen und das API Gateway erstellt und miteinander verknüpft.
+     */
     public void initializeStack() {
 
         DynamoDbTableFactory dbTableFactory = new DynamoDbTableFactory();

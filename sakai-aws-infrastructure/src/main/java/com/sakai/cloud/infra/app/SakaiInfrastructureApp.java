@@ -9,9 +9,21 @@ import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
 
+/**
+ * Der Haupteinstiegspunkt für die Sakai Cloud Infrastructure CDK App.
+ * Diese Klasse konfiguriert und initialisiert die verschiedenen Stacks für die Infrastruktur
+ * und die Lambda-Deployment-Pipelines basierend auf dem aktuellen Stage (z. B. Dev, Test, Prod).
+ */
 public class SakaiInfrastructureApp {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiInfrastructureApp.class);
 
+    /**
+     * Die main-Methode, die die CDK-App startet.
+     * Sie ermittelt die Umgebungsvariablen für Account und Region, bestimmt den Stage
+     * und initialisiert die Pipelines für Lambda-Deployments sowie die AWS-Infrastruktur.
+     *
+     * @param args Kommandozeilenargumente
+     */
     public static void main(String[] args) {
         App app = new App();
 
@@ -43,7 +55,7 @@ public class SakaiInfrastructureApp {
 
         // Lambda Deploy
         final StackProps backendServiceStackProps = StackProps.builder()
-                .description("SAKAI Service. Pipeline für Lambda Deploy — Inventory Management System.")
+                .description("SAKAI Service. Pipeline fur Lambda Deploy — Inventory Management System.")
                 .env(env)
                 .build();
 
@@ -52,7 +64,7 @@ public class SakaiInfrastructureApp {
 
         // AWS Infrastruktur
         final StackProps infraStackProps = StackProps.builder()
-                .description("SAKAI Infrastructure. Pipeline für AWS Infrastruktur — Inventory Management System.")
+                .description("SAKAI Infrastructure. Pipeline fur AWS Infrastruktur — Inventory Management System.")
                 .env(env)
                 .build();
 

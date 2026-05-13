@@ -22,6 +22,13 @@ import java.util.List;
 import java.util.Map;
 
 // TODO: Deploy-Lambda Stage
+
+/**
+ * Stack für die Lambda-Deployment-Pipeline.
+ * Im Gegensatz zur InfrastructurePipelineStack fokussiert sich dieser Stack auf das
+ * Bauen und Bereitstellen der Backend-Services (Lambda-Funktionen).
+ * Er erstellt die notwendigen S3-Buckets für Artefakte und die CodePipeline-Struktur.
+ */
 public class LambdaDeployPipelineStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(LambdaDeployPipelineStack.class);
     private final StageConfigurator stageConfig;
@@ -48,6 +55,10 @@ public class LambdaDeployPipelineStack extends Stack {
         Tags.of(this).add("Owner", "Digitalisierung");
     }
 
+    /**
+     * Initialisiert den Stack und konfiguriert die notwendigen Ressourcen wie
+     * Artefakt-Buckets und die CodePipeline.
+     */
     public void initializeStack() {
         lambdaArtifactBucket = createLambdaArtifactBucket();
         Bucket pipelineArtifactBucket = createPipelineArtifactBucket();

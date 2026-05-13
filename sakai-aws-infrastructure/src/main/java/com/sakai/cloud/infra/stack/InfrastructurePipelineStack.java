@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.pipelines.*;
 import software.amazon.awscdk.services.codebuild.BuildEnvironment;
+import software.amazon.awscdk.services.codebuild.ComputeType;
 import software.amazon.awscdk.services.codebuild.LinuxBuildImage;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
@@ -15,6 +16,13 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Definiert die CI/CD-Pipeline für die AWS-Infrastruktur.
+ * Diese Pipeline nutzt CDK Pipelines, um Änderungen an der Infrastruktur
+ * (wie DynamoDB, API Gateway, Lambda-Konfiguration) automatisiert auszurollen.
+ * Sie beinhaltet Schritte zum Synthetisieren des CDK-Codes und zum Deployment
+ * der Anwendungsstages.
+ */
 public class InfrastructurePipelineStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(InfrastructurePipelineStack.class);
 
@@ -39,6 +47,10 @@ public class InfrastructurePipelineStack extends Stack {
         Tags.of(this).add("Owner", "Digitalisierung");
     }
 
+    /**
+     * Initialisiert den Stack, erstellt den Artefakt-Bucket und die CodePipeline.
+     * Verbindet die Pipeline mit der Quellverwaltung und fügt die Deployment-Stages hinzu.
+     */
     public void initializeStack() {
         final Environment env = stackProps.getEnv();
 
@@ -119,7 +131,11 @@ public class InfrastructurePipelineStack extends Stack {
                 .primaryOutputDirectory("sakai-aws-infrastructure/cdk.out")
                 .env(Map.of(
                         "STAGE_NAME", stageConfig.stageName(),
-                        "SAKAI_PROJECT_STAGE", stageConfig.stageName()
+                        "SAKAI_PROJECT_STAGE", stageConfig.stageName(),
+                        "CONNECTION_ARN_DEV_ACCOUNT", stageConfig.connectionArn(),
+                        "CONNECTION_ARN_TEST_ACCOUNT", stageConfig.connectionArn(),
+                        "CONNECTION_ARN_PROD_ACCOUNT", stageConfig.connectionArn(),
+                        "CONNECTION_ARN_SANDBOX_ACCOUNT", stageConfig.connectionArn()
                 ))
                 .build();
 
@@ -152,6 +168,7 @@ public class InfrastructurePipelineStack extends Stack {
     private CodeBuildOptions getCodeBuildOptions() {
         BuildEnvironment buildEnvironment = BuildEnvironment.builder()
                 .buildImage(LinuxBuildImage.STANDARD_7_0)
+                .computeType(ComputeType.MEDIUM)
                 .build();
 
         return CodeBuildOptions.builder()
