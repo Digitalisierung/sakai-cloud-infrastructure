@@ -74,6 +74,20 @@ public record StageConfigurator(
                     List.of("*"),
                     "cdk synth -c stage=Prod"
             );
+            case "local-dev" -> new StageConfigurator(
+                    "local-dev",
+                    stage, // ist Branch
+                    System.getenv("CONNECTION_ARN_SANDBOX_ACCOUNT"),
+                    RemovalPolicy.DESTROY,
+                    false,
+                    true,
+                    true,
+                    30,
+                    1024,
+                    "DEBUG",
+                    List.of("*"),
+                    "cdk synth -c branch=" + stage
+            );
             default -> throw new IllegalArgumentException("Invalid stage: " + stage);
         };
     }
@@ -86,11 +100,11 @@ public record StageConfigurator(
      * @return Ein konfigurierter StageConfigurator für die lokale Entwicklung.
      * @throws IllegalArgumentException Wenn der Branch-Name null oder leer ist.
      */
-    public static StageConfigurator fromLocal(String branch) {
+    public static StageConfigurator __fromLocal(String branch) {
         if (branch == null || branch.isBlank()) throw new IllegalArgumentException("Invalid branch name: " + branch);
 
         return new StageConfigurator(
-                "Dev",
+                "local-dev",
                 branch,
                 System.getenv("CONNECTION_ARN_SANDBOX_ACCOUNT"),
                 RemovalPolicy.DESTROY,

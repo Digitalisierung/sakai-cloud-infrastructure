@@ -45,7 +45,7 @@ public class SakaiInfrastructureApp {
         } catch (IllegalArgumentException e) {
             LOGGER.error(e.getMessage(), e);
             String branch = (String) app.getNode().tryGetContext("branch");
-            stageConfig = StageConfigurator.fromLocal(branch);
+            stageConfig = StageConfigurator.fromStage(branch);
         }
 
         final Environment env = Environment.builder()
