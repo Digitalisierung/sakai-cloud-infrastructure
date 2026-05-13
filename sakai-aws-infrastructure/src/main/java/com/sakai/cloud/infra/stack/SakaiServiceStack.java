@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.apigateway.IResource;
 import software.amazon.awscdk.services.apigateway.LambdaIntegration;
 import software.amazon.awscdk.services.apigateway.LambdaIntegrationOptions;
@@ -44,6 +45,12 @@ public class SakaiServiceStack extends Stack {
 
         this.stageConfig = stageConfig;
         this.artifactBucketName = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-bucket-name");
+
+        Tags.of(this).add("Project", "Sakai");
+        Tags.of(this).add("Stage", stageConfig.stageName());
+        Tags.of(this).add("ManagedBy", "CDK");
+        Tags.of(this).add("Owner", "Digitalisierung");
+        Tags.of(this).add("Service", "InventoryManagement");
     }
 
     public void initializeStack() {

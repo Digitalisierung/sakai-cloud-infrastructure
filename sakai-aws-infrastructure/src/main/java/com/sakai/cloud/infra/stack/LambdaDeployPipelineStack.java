@@ -1,10 +1,9 @@
 package com.sakai.cloud.infra.stack;
 
 import com.sakai.cloud.infra.config.StageConfigurator;
-import software.amazon.awscdk.Duration;
-import software.amazon.awscdk.RemovalPolicy;
-import software.amazon.awscdk.Stack;
-import software.amazon.awscdk.StackProps;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.*;
 import software.amazon.awscdk.services.codepipeline.Artifact;
 import software.amazon.awscdk.services.codepipeline.Pipeline;
@@ -22,7 +21,9 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
+// TODO: Deploy-Lambda Stage
 public class LambdaDeployPipelineStack extends Stack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LambdaDeployPipelineStack.class);
     private final StageConfigurator stageConfig;
     private Bucket lambdaArtifactBucket;
     private Pipeline backendPipeline;
@@ -40,12 +41,17 @@ public class LambdaDeployPipelineStack extends Stack {
         super(scope, id, stackProps);
 
         this.stageConfig = stageConfig;
+
+        Tags.of(this).add("Project", "Sakai");
+        Tags.of(this).add("Stage", stageConfig.stageName());
+        Tags.of(this).add("ManagedBy", "CDK");
+        Tags.of(this).add("Owner", "Digitalisierung");
     }
 
     public void initializeStack() {
         lambdaArtifactBucket = createLambdaArtifactBucket();
-        initializeStringParams();
         Bucket pipelineArtifactBucket = createPipelineArtifactBucket();
+        initializeStringParams();
         Role lambdaArtifactBucketRole = createArtifactBucketRole();
         PipelineProject codeBuildProject = createPipelineProject(lambdaArtifactBucketRole);
         Role pipelineRole = createPipelineRole(codeBuildProject, lambdaArtifactBucketRole);
@@ -58,6 +64,7 @@ public class LambdaDeployPipelineStack extends Stack {
                 .parameterName("/sakai/" + stageConfig.stageName() + "/lambda/artifact-bucket-name")
                 .stringValue(lambdaArtifactBucket.getBucketName())
                 .dataType(ParameterDataType.TEXT)
+                .description("Name des S3-Buckets, in dem das Lambda-Artefakt (JAR) gespeichert wird.")
                 .build();
 
         this.bucketNameParameter = new StringParameter(this, "BucketNameParameterId", stringParamProps);
@@ -67,6 +74,7 @@ public class LambdaDeployPipelineStack extends Stack {
                 .parameterName("/sakai/" + stageConfig.stageName() + "/lambda/artifact-key")
                 .stringValue("asset-service-lambda.jar")
                 .dataType(ParameterDataType.TEXT)
+                .description("S3-Objektschlüssel (Key) der Lambda-JAR-Datei im Artefakt-Bucket. Name der JAR-Datei.")
                 .build();
 
         this.jarKeyParameter = new StringParameter(this, "JarKeyParameterID", jarKeyParamProps);
@@ -177,9 +185,14 @@ public class LambdaDeployPipelineStack extends Stack {
                 .environmentVariables(Map.of(
                         "S3_LAMBDA_ART_BUCKET", BuildEnvironmentVariable.builder()
                                 .value(lambdaArtifactBucket.getBucketName())
+                                .type(BuildEnvironmentVariableType.PLAINTEXT)
+                                .build(),
+                        "STAGE_NAME", BuildEnvironmentVariable.builder()
+                                .value(stageConfig.stageName())
+                                .type(BuildEnvironmentVariableType.PLAINTEXT)
                                 .build()
                 ))
-                .buildSpec(BuildSpec.fromAsset("buildspec.yaml"))
+                .buildSpec(BuildSpec.fromSourceFilename("buildspec.yaml"))
                 .role(lambdaArtifactBucketRole)
                 .build();
 

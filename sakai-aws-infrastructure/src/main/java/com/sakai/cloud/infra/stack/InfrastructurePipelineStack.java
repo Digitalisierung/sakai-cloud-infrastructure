@@ -32,6 +32,11 @@ public class InfrastructurePipelineStack extends Stack {
 
         this.stackProps = stackProps;
         this.stageConfig = stageConfig;
+
+        Tags.of(this).add("Project", "Sakai");
+        Tags.of(this).add("Stage", stageConfig.stageName());
+        Tags.of(this).add("ManagedBy", "CDK");
+        Tags.of(this).add("Owner", "Digitalisierung");
     }
 
     public void initializeStack() {
