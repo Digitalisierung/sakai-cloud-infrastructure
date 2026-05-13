@@ -25,6 +25,8 @@ public class SakaiInfrastructureApp {
         if (stageName == null || stageName.isBlank()) stageName = System.getenv("SAKAI_PROJECT_STAGE");
         if (stageName == null || stageName.isBlank()) stageName = "local-env";
 
+        LOGGER.info("SAKAI_PROJECT_STAGE={}", stageName);
+
         StageConfigurator stageConfig;
         try {
             stageConfig = StageConfigurator.fromStage(stageName);

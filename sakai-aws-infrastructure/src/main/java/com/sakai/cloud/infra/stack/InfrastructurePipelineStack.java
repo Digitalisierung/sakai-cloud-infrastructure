@@ -118,7 +118,8 @@ public class InfrastructurePipelineStack extends Stack {
                 ))
                 .primaryOutputDirectory("sakai-aws-infrastructure/cdk.out")
                 .env(Map.of(
-                        "STAGE_NAME", stageConfig.stageName()
+                        "STAGE_NAME", stageConfig.stageName(),
+                        "SAKAI_PROJECT_STAGE", stageConfig.stageName()
                 ))
                 .build();
 
@@ -129,7 +130,7 @@ public class InfrastructurePipelineStack extends Stack {
         final CodePipelineProps codePipelineProps = CodePipelineProps.builder()
                 .synth(shellStep)
                 .artifactBucket(artifactBucket)
-                .pipelineName(stageConfig.stageName())
+                .pipelineName("InfrastructurePipelineStack-" + stageConfig.stageName())
                 .selfMutation(true)
                 .codeBuildDefaults(codeBuildOptions)
                 .synthCodeBuildDefaults(codeBuildOptions)
