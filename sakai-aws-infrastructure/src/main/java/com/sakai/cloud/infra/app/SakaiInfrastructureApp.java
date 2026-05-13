@@ -33,10 +33,10 @@ public class SakaiInfrastructureApp {
 
         // Stage Configurator
         String stageName = (String) app.getNode().tryGetContext("stage");
-        if (stageName == null || stageName.isBlank()) stageName = System.getenv("SAKAI_PROJECT_STAGE");
+        if (stageName == null || stageName.isBlank()) stageName = System.getenv("STAGE_NAME");
         if (stageName == null || stageName.isBlank()) stageName = "local-env";
 
-        LOGGER.info("SAKAI_PROJECT_STAGE={}", stageName);
+        LOGGER.info("STAGE_NAME={}", stageName);
 
         StageConfigurator stageConfig;
         try {

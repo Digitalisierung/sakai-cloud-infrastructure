@@ -26,6 +26,10 @@ public record StageConfigurator(
         String cdkSynthCommand
 ) {
     private static final Logger LOGGER = LoggerFactory.getLogger(StageConfigurator.class);
+    private static final String CONNECTION_ARN_DEV_ACCOUNT = "arn:aws:codeconnections:eu-central-1:672296383273:connection/928fe30b-f26c-4070-9ca3-31ad39780b4f";
+    private static final String CONNECTION_ARN_TEST_ACCOUNT = "";
+    private static final String CONNECTION_ARN_PROD_ACCOUNT = "";
+    private static final String CONNECTION_ARN_SANDBOX_ACCOUNT = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
     /**
      * Erstellt einen StageConfigurator für einen der vordefinierten Stages (dev, test, prod).
      *
@@ -38,7 +42,7 @@ public record StageConfigurator(
             case "dev", "Dev", "DEV" -> new StageConfigurator(
                     "Dev",
                     "develop",
-                    System.getenv("CONNECTION_ARN_DEV_ACCOUNT"),
+                    CONNECTION_ARN_DEV_ACCOUNT,
                     RemovalPolicy.DESTROY,
                     false,
                     true,
@@ -52,7 +56,7 @@ public record StageConfigurator(
             case "test", "Test", "TEST" -> new StageConfigurator(
                     "Test",
                     "not-defined",
-                    System.getenv("CONNECTION_ARN_TEST_ACCOUNT"),
+                    CONNECTION_ARN_TEST_ACCOUNT,
                     RemovalPolicy.RETAIN,
                     true,
                     false,
@@ -66,7 +70,7 @@ public record StageConfigurator(
             case "prod", "Prod", "PROD" -> new StageConfigurator(
                     "Prod",
                     "main",
-                    System.getenv("CONNECTION_ARN_PROD_ACCOUNT"),
+                    CONNECTION_ARN_PROD_ACCOUNT,
                     RemovalPolicy.RETAIN,
                     true,
                     false,
@@ -96,7 +100,7 @@ public record StageConfigurator(
         return new StageConfigurator(
                 "local-env",
                 branch,
-                System.getenv("CONNECTION_ARN_SANDBOX_ACCOUNT"),
+                CONNECTION_ARN_SANDBOX_ACCOUNT,
                 RemovalPolicy.DESTROY,
                 false,
                 true,

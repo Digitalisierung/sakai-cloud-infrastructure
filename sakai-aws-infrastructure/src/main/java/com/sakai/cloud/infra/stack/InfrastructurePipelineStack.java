@@ -130,10 +130,7 @@ public class InfrastructurePipelineStack extends Stack {
                 ))
                 .primaryOutputDirectory("sakai-aws-infrastructure/cdk.out")
                 .env(Map.of(
-                        "STAGE_NAME", stageConfig.stageName(),
-                        "SAKAI_PROJECT_STAGE", stageConfig.stageName(),
-                        "CONNECTION_ARN_DEV_ACCOUNT", stageConfig.connectionArn(),
-                        "CONNECTION_ARN_SANDBOX_ACCOUNT", stageConfig.connectionArn()
+                        "STAGE_NAME", stageConfig.stageName()
                 ))
                 .build();
 
