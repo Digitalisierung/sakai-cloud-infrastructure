@@ -26,10 +26,12 @@ public record StageConfigurator(
         String cdkSynthCommand
 ) {
     private static final Logger LOGGER = LoggerFactory.getLogger(StageConfigurator.class);
+
     private static final String CONNECTION_ARN_DEV_ACCOUNT = "arn:aws:codeconnections:eu-central-1:672296383273:connection/928fe30b-f26c-4070-9ca3-31ad39780b4f";
     private static final String CONNECTION_ARN_TEST_ACCOUNT = "";
     private static final String CONNECTION_ARN_PROD_ACCOUNT = "";
     private static final String CONNECTION_ARN_SANDBOX_ACCOUNT = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
+
     /**
      * Erstellt einen StageConfigurator für einen der vordefinierten Stages (dev, test, prod).
      *
@@ -94,7 +96,7 @@ public record StageConfigurator(
      * @throws IllegalArgumentException Wenn der Branch-Name null oder leer ist.
      */
     public static StageConfigurator fromLocal(String branch) {
-        LOGGER.info("Branch= {}", branch);
+        LOGGER.info("Branch={}, Stage=local-env", branch);
         if (branch == null || branch.isBlank()) throw new IllegalArgumentException("Invalid branch name: " + branch);
 
         return new StageConfigurator(

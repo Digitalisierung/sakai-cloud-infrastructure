@@ -63,7 +63,6 @@ public class InfrastructurePipelineStack extends Stack {
         // S3 Bucket zum Speichern des Pipeline's Artifakt.
         final Bucket pipelineArtBucket = createArtifactBucket();
 
-        //final StageConfigurator stageConfig = initializeStageConfiguration();
         LOGGER.info("Stage name: {}, branch: {}", stageConfig.stageName(), stageConfig.branch());
         LOGGER.info("Connection arn: {}", stageConfig.connectionArn());
 
@@ -106,6 +105,7 @@ public class InfrastructurePipelineStack extends Stack {
     }
 
     private CodePipeline createCodePipeline(Bucket artifactBucket, StageConfigurator stageConfig) {
+        LOGGER.info("STAGE_NAME {}, CONNECTION_ARN {}", stageConfig.stageName(), stageConfig.connectionArn());
         final ConnectionSourceOptions conSourceOptions = ConnectionSourceOptions.builder()
                 .connectionArn(stageConfig.connectionArn())
                 .triggerOnPush(true)
