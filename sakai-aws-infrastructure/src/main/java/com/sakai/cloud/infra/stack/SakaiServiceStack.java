@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.Tags;
 import software.amazon.awscdk.services.apigateway.IResource;
 import software.amazon.awscdk.services.apigateway.LambdaIntegration;
 import software.amazon.awscdk.services.apigateway.LambdaIntegrationOptions;
@@ -22,16 +23,22 @@ import software.amazon.awscdk.services.lambda.*;
 import software.amazon.awscdk.services.lambda.Runtime;
 import software.amazon.awscdk.services.s3.Bucket;
 import software.amazon.awscdk.services.s3.IBucket;
+import software.amazon.awscdk.services.ssm.StringParameter;
 import software.constructs.Construct;
 
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Der Stack für die eigentlichen Backend-Services des Sakai Inventory Management Systems.
+ * Er erstellt und konfiguriert die primären Ressourcen wie die DynamoDB-Tabelle,
+ * das API Gateway und die Lambda-Funktionen für die Geschäftslogik.
+ */
 public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
     // sakai-lambda-artifacts
-    private String artifactBucketName = "sakai-lambda-artifacts";
+    private final String artifactBucketName;
     // asset-service-1.0-SNAPSHOT.jar
     //private String artifactObjectKey;
     private Table inventoryTable;
@@ -42,8 +49,19 @@ public class SakaiServiceStack extends Stack {
         super(app, id, props);
 
         this.stageConfig = stageConfig;
+        this.artifactBucketName = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-bucket-name");
+
+        Tags.of(this).add("Project", "Sakai");
+        Tags.of(this).add("Stage", stageConfig.stageName());
+        Tags.of(this).add("ManagedBy", "CDK");
+        Tags.of(this).add("Owner", "Digitalisierung");
+        Tags.of(this).add("Service", "InventoryManagement");
     }
 
+    /**
+     * Initialisiert den Stack, indem er die DynamoDB-Tabelle, die IAM-Rollen,
+     * die Lambda-Funktionen und das API Gateway erstellt und miteinander verknüpft.
+     */
     public void initializeStack() {
 
         DynamoDbTableFactory dbTableFactory = new DynamoDbTableFactory();
@@ -65,16 +83,12 @@ public class SakaiServiceStack extends Stack {
         // === LAMBDA FUNCTION for ListArticles Handler ===
 
         // Versuche den Key aus SSM zu lesen...
-        String parameterName = "<coming-soon>";
-//        try {
-//            objectKey = StringParameter.valueForStringParameter(this, parameterName);
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
+        String jarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-key");
+
         FunctionProps lambdaFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
-                .code(Code.fromBucket(artifactBucket, "asset-service-lambda.jar"))
-                .description("Gibt eine Liste aller Artikel zurück.")
+                .code(Code.fromBucket(artifactBucket, jarKeyParameter))
+                .description("Lambda-Funktion, die eine Liste aller Artikel aus der DynamoDB zurückgibt.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
                 ))
@@ -111,6 +125,7 @@ public class SakaiServiceStack extends Stack {
     private Role createLambdaExecRole() {
         final RoleProps lambdaRoleProps = RoleProps.builder()
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
+                .description("IAM-Rolle für die Ausführung der Lambda-Funktion des Inventory-Services.")
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
                 ))

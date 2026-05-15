@@ -9,6 +9,11 @@ import software.amazon.awscdk.Stage;
 import software.amazon.awscdk.StageProps;
 import software.constructs.Construct;
 
+/**
+ * Repräsentiert eine Anwendungsstage in der CDK-Pipeline.
+ * Diese Klasse bündelt die verschiedenen Stacks (z. B. den {@link SakaiServiceStack}),
+ * die gemeinsam in einer Stage (Dev, Test, Prod) bereitgestellt werden.
+ */
 public class SakaiApplicationStage extends Stage {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiApplicationStage.class);
 

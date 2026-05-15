@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.pipelines.*;
 import software.amazon.awscdk.services.codebuild.BuildEnvironment;
+import software.amazon.awscdk.services.codebuild.ComputeType;
 import software.amazon.awscdk.services.codebuild.LinuxBuildImage;
 import software.amazon.awscdk.services.iam.Effect;
 import software.amazon.awscdk.services.iam.PolicyStatement;
@@ -15,6 +16,13 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Definiert die CI/CD-Pipeline für die AWS-Infrastruktur.
+ * Diese Pipeline nutzt CDK Pipelines, um Änderungen an der Infrastruktur
+ * (wie DynamoDB, API Gateway, Lambda-Konfiguration) automatisiert auszurollen.
+ * Sie beinhaltet Schritte zum Synthetisieren des CDK-Codes und zum Deployment
+ * der Anwendungsstages.
+ */
 public class InfrastructurePipelineStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(InfrastructurePipelineStack.class);
 
@@ -32,8 +40,17 @@ public class InfrastructurePipelineStack extends Stack {
 
         this.stackProps = stackProps;
         this.stageConfig = stageConfig;
+
+        Tags.of(this).add("Project", "Sakai");
+        Tags.of(this).add("Stage", stageConfig.stageName());
+        Tags.of(this).add("ManagedBy", "CDK");
+        Tags.of(this).add("Owner", "Digitalisierung");
     }
 
+    /**
+     * Initialisiert den Stack, erstellt den Artefakt-Bucket und die CodePipeline.
+     * Verbindet die Pipeline mit der Quellverwaltung und fügt die Deployment-Stages hinzu.
+     */
     public void initializeStack() {
         final Environment env = stackProps.getEnv();
 
@@ -46,7 +63,6 @@ public class InfrastructurePipelineStack extends Stack {
         // S3 Bucket zum Speichern des Pipeline's Artifakt.
         final Bucket pipelineArtBucket = createArtifactBucket();
 
-        //final StageConfigurator stageConfig = initializeStageConfiguration();
         LOGGER.info("Stage name: {}, branch: {}", stageConfig.stageName(), stageConfig.branch());
         LOGGER.info("Connection arn: {}", stageConfig.connectionArn());
 
@@ -89,6 +105,7 @@ public class InfrastructurePipelineStack extends Stack {
     }
 
     private CodePipeline createCodePipeline(Bucket artifactBucket, StageConfigurator stageConfig) {
+        LOGGER.info("STAGE_NAME {}, CONNECTION_ARN {}", stageConfig.stageName(), stageConfig.connectionArn());
         final ConnectionSourceOptions conSourceOptions = ConnectionSourceOptions.builder()
                 .connectionArn(stageConfig.connectionArn())
                 .triggerOnPush(true)
@@ -124,7 +141,6 @@ public class InfrastructurePipelineStack extends Stack {
         final CodePipelineProps codePipelineProps = CodePipelineProps.builder()
                 .synth(shellStep)
                 .artifactBucket(artifactBucket)
-                .pipelineName(stageConfig.stageName())
                 .selfMutation(true)
                 .codeBuildDefaults(codeBuildOptions)
                 .synthCodeBuildDefaults(codeBuildOptions)
@@ -146,6 +162,7 @@ public class InfrastructurePipelineStack extends Stack {
     private CodeBuildOptions getCodeBuildOptions() {
         BuildEnvironment buildEnvironment = BuildEnvironment.builder()
                 .buildImage(LinuxBuildImage.STANDARD_7_0)
+                .computeType(ComputeType.MEDIUM)
                 .build();
 
         return CodeBuildOptions.builder()
