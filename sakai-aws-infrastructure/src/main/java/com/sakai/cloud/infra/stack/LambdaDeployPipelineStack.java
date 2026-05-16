@@ -5,10 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.*;
 import software.amazon.awscdk.services.codebuild.*;
-import software.amazon.awscdk.services.codepipeline.Artifact;
-import software.amazon.awscdk.services.codepipeline.Pipeline;
-import software.amazon.awscdk.services.codepipeline.PipelineProps;
-import software.amazon.awscdk.services.codepipeline.StageOptions;
+import software.amazon.awscdk.services.codepipeline.*;
 import software.amazon.awscdk.services.codepipeline.actions.CodeBuildAction;
 import software.amazon.awscdk.services.codepipeline.actions.CodeStarConnectionsSourceAction;
 import software.amazon.awscdk.services.iam.*;
@@ -107,6 +104,10 @@ public class LambdaDeployPipelineStack extends Stack {
         Artifact sourceOutput = new Artifact("BackendSourceOutputArtifact");
 //        Artifact buildOutput = new Artifact("BuildOutputArtifact");
 
+        GitPushFilter gitPushFilter = GitPushFilter.builder()
+                .branchesIncludes(List.of(stageConfig.branch()))
+                .build();
+
         StageOptions sourceStage = StageOptions.builder()
                 .stageName("Source")
                 .actions(List.of(CodeStarConnectionsSourceAction.Builder.create()
@@ -115,7 +116,6 @@ public class LambdaDeployPipelineStack extends Stack {
                         .repo(REPO)
                         .branch(stageConfig.branch())
                         .connectionArn(stageConfig.connectionArn())
-                        .triggerOnPush(true)
                         .output(sourceOutput)
                         .build()))
                 .build();
@@ -134,7 +134,17 @@ public class LambdaDeployPipelineStack extends Stack {
 //                .actions(List.of())
 //                .build();
 
+        TriggerProps triggerProps = TriggerProps.builder()
+                .providerType(ProviderType.CODE_STAR_SOURCE_CONNECTION)
+                .gitConfiguration(GitConfiguration.builder()
+                        .sourceAction(sourceStage.getActions().get(0))
+                        .pushFilter(List.of(gitPushFilter))
+                        .build())
+                .build();
+
         PipelineProps pipelineProps = PipelineProps.builder()
+                .pipelineType(PipelineType.V2)
+                .triggers(List.of(triggerProps))
                 .artifactBucket(pipelineArtifactBucket)
                 .role(pipelineRole)
                 .stages(List.of(sourceStage, buildStage))
@@ -187,7 +197,7 @@ public class LambdaDeployPipelineStack extends Stack {
     private PipelineProject createPipelineProject(Role lambdaArtifactBucketRole) {
         BuildEnvironment projectEnvironment = BuildEnvironment.builder()
                 .computeType(ComputeType.MEDIUM)
-                .buildImage(LinuxBuildImage.STANDARD_7_0)
+                .buildImage(LinuxBuildImage.AMAZON_LINUX_2_5)
                 .build();
 
         PipelineProjectProps projectProps = PipelineProjectProps.builder()
@@ -205,6 +215,7 @@ public class LambdaDeployPipelineStack extends Stack {
                 ))
                 .buildSpec(BuildSpec.fromSourceFilename("buildspec.yaml"))
                 .role(lambdaArtifactBucketRole)
+                .timeout(Duration.minutes(15))
                 .build();
 
         return new PipelineProject(this, "PipelineProjectId", projectProps);

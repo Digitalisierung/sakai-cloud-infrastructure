@@ -112,19 +112,23 @@ public class InfrastructurePipelineStack extends Stack {
                 .build();
 
         final CodePipelineSource pipelineSource = CodePipelineSource.connection(ORGANISATION + "/" + REPO, stageConfig.branch(), conSourceOptions);
-
+        // install commands:
+        // "apt-get update",
+        //        "apt-get install -y openjdk-21-jdk"
+        // commands:
+        //"export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
+        //        "export PATH=$JAVA_HOME/bin:$PATH",
         final ShellStepProps shellStepProps = ShellStepProps.builder()
                 .input(pipelineSource)
                 .installCommands(List.of(
-                        "npm install -g aws-cdk",
-                        "cdk --version",
-                        "apt-get update",
-                        "apt-get install -y openjdk-21-jdk"
+                        "npm install -g aws-cdk"
                 ))
                 .commands(List.of(
-                        "export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64",
+                        "cdk --version",
+                        "export JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto.x86_64",
                         "export PATH=$JAVA_HOME/bin:$PATH",
-                        "java --version",
+                        "java -version",
+                        "mvn -v",
                         "cd sakai-aws-infrastructure",
                         stageConfig.cdkSynthCommand()
                 ))
@@ -161,7 +165,7 @@ public class InfrastructurePipelineStack extends Stack {
 
     private CodeBuildOptions getCodeBuildOptions() {
         BuildEnvironment buildEnvironment = BuildEnvironment.builder()
-                .buildImage(LinuxBuildImage.STANDARD_7_0)
+                .buildImage(LinuxBuildImage.AMAZON_LINUX_2_5)
                 .computeType(ComputeType.MEDIUM)
                 .build();
 
