@@ -71,6 +71,8 @@ public class SakaiServiceStack extends Stack {
         // === DynamoDB TABLE ===
         //inventoryTable = createDynamoDbTable(stage);
         inventoryTable = dbTableFactory.createDynamoDbTable(this, "InventoryTableId", stageConfig);
+        dbTableFactory.addGlobalSecondaryIndex(inventoryTable, "GSI_entityType", "entityType", "sortKey");
+        dbTableFactory.addGlobalSecondaryIndex(inventoryTable, "GSI_ItemsInCatalogs", "catalogId", "sortKey");
 
         // === S3 Artifact BUCKET ===
         final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
@@ -148,9 +150,9 @@ public class SakaiServiceStack extends Stack {
     private Role createLambdaExecRole() {
         final RoleProps lambdaRoleProps = RoleProps.builder()
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
-                .description("IAM-Rolle für die Ausführung der Lambda-Funktion des Inventory-Services.")
+                .description("IAM-Rolle für für CloudWatch Logs.")
                 .managedPolicies(List.of(
-                        ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
+                        ManagedPolicy.fromManagedPolicyName(this, "BasicExecutionPolicyId", "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
                 ))
                 .build();
 

@@ -22,6 +22,23 @@ public class DynamoDbTableFactory {
         return new Table(scope, id, createTableProps(stageConfig));
     }
 
+    public void addGlobalSecondaryIndex(Table table, String indexName, String partitionKey, String sortKey) {
+        GlobalSecondaryIndexProps gsi = GlobalSecondaryIndexProps.builder()
+                .indexName(indexName)
+                .partitionKey(Attribute.builder()
+                        .name(partitionKey)
+                        .type(AttributeType.STRING)
+                        .build())
+                .sortKey(Attribute.builder()
+                        .name(sortKey)
+                        .type(AttributeType.STRING)
+                        .build())
+                .projectionType(ProjectionType.ALL)
+                .build();
+
+        table.addGlobalSecondaryIndex(gsi);
+    }
+
     private TableProps createTableProps(StageConfigurator stageConfig) {
         return TableProps.builder()
                 .partitionKey(Attribute.builder()
