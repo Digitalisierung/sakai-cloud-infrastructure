@@ -85,6 +85,7 @@ public class SakaiServiceStack extends Stack {
         // Versuche den Key aus SSM zu lesen...
         String jarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-key");
 
+        // List Articles
         FunctionProps lambdaFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
                 .code(Code.fromBucket(artifactBucket, jarKeyParameter))
@@ -100,6 +101,23 @@ public class SakaiServiceStack extends Stack {
                 .build();
 
         final Function listArticlesFunction = new Function(this, "ListArticlesHandlerFunctionId", lambdaFunctionProps);
+
+        // Get Article
+        FunctionProps getArticleFunctionProps = FunctionProps.builder()
+                .architecture(Architecture.X86_64)
+                .code(Code.fromBucket(artifactBucket, jarKeyParameter))
+                .description("Lambda function that returns an article by its ID.")
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .handler("com.sakai.inventory.api.handler.GetArticleHandler::handleRequest")
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .role(lambdaExecRole)
+                .timeout(Duration.seconds(30))
+                .build();
+
+        Function getArtcleFunction = new Function(this, "GetArticleHandlerFunctionId", getArticleFunctionProps);
 
 
         // === API GATEWAY ===
@@ -118,6 +136,11 @@ public class SakaiServiceStack extends Stack {
                 .build()));
 
         // define `/articles/{id}` resource
+        IResource getArticleResource = listArticlesResource.addResource("{id}");
+        getArticleResource.addMethod("GET", new LambdaIntegration(getArtcleFunction, LambdaIntegrationOptions.builder()
+                .proxy(true)
+                .build()));
+
         // define `/catalogs` resource
         // define `/catalogs/{id}/articles` resource
     }
