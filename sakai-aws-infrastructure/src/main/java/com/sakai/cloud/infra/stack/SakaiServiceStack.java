@@ -152,7 +152,7 @@ public class SakaiServiceStack extends Stack {
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
                 .description("IAM-Rolle für für CloudWatch Logs.")
                 .managedPolicies(List.of(
-                        ManagedPolicy.fromManagedPolicyName(this, "BasicExecutionPolicyId", "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
+                        ManagedPolicy.fromAwsManagedPolicyName("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole")
                 ))
                 .build();
 
