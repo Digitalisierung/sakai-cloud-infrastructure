@@ -37,12 +37,8 @@ import java.util.Map;
 public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
-    // sakai-lambda-artifacts
     private final String artifactBucketName;
-    // asset-service-1.0-SNAPSHOT.jar
-    //private String artifactObjectKey;
     private Table inventoryTable;
-    // DEV, TEST, PROD, etc.
     private StageConfigurator stageConfig;
 
     public SakaiServiceStack(Construct app, String id, StackProps props, StageConfigurator stageConfig) {
@@ -158,40 +154,4 @@ public class SakaiServiceStack extends Stack {
 
         return new Role(this, "LambdaExecutionRoleId", lambdaRoleProps);
     }
-
-//    private RestApi createApiGateway(String stage, Function listArticlesFunction) {
-//        final StageOptions deployOpt = StageOptions.builder()
-//                .stageName(stage)
-//                .dataTraceEnabled(StageDecisions.enableDataTrace(stage)) // in prod disabled
-//                .loggingLevel(MethodLoggingLevel.ERROR)
-//                .build();
-//
-//        final CorsOptions corsOpt = CorsOptions.builder()
-//                .allowOrigins(Cors.ALL_ORIGINS) // for dev allow all origins. Must be changed in prod.
-//                .allowMethods(Cors.ALL_METHODS)
-//                .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
-//                .build();
-//
-//        final RestApiProps props = RestApiProps.builder()
-//                .restApiName("InventoryRestApiGateway")
-//                .description("API for Inventory Management System")
-//                .deployOptions(deployOpt)
-//                .defaultCorsPreflightOptions(corsOpt)
-//                .cloudWatchRole(true)
-//                .build();
-//
-//        final RestApi restApi = new RestApi(this, "RestApiGateway", props);
-//
-//        // define `/articles` resource
-//        final IResource listArticlesResource = restApi.getRoot().addResource("articles");
-//        listArticlesResource.addMethod("GET", new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
-//                .proxy(true)
-//                .build()));
-//
-//        // define `/articles/{id}` resource
-//        // define `/catalogs` resource
-//        // define `/catalogs/{id}/articles` resource
-//
-//        return restApi;
-//    }
 }
