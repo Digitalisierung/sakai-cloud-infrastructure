@@ -11,11 +11,7 @@
 
     <modules>
         <module>angular-im-frontend-cicd-pipeline</module>
-        <module>lambda-cicd-pipeline</module>
-        <module>lambda-s3-build-pipeline</module>
         <module>sakai-aws-infrastructure</module>
-        <module>frontend-cicd-pipeline</module>
-        <module>backend-cicd-pipeline</module>
     </modules>
 
     <properties>
