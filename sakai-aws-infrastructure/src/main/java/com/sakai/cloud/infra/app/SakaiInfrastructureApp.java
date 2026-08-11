@@ -2,7 +2,6 @@ package com.sakai.cloud.infra.app;
 
 import com.sakai.cloud.infra.config.StageConfigurator;
 import com.sakai.cloud.infra.stack.InfrastructurePipelineStack;
-import com.sakai.cloud.infra.stack.LambdaDeployPipelineStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;
@@ -52,15 +51,6 @@ public class SakaiInfrastructureApp {
                 .account(defaultAccount)
                 .region(defaultRegion)
                 .build();
-
-        // Lambda Deploy
-        final StackProps backendServiceStackProps = StackProps.builder()
-                .description("SAKAI Service. Pipeline fur Lambda Deploy — Inventory Management System.")
-                .env(env)
-                .build();
-
-        final LambdaDeployPipelineStack lambdaDeployPipelineStack = new LambdaDeployPipelineStack(app, "SakaiLambdaDeployPipelineStackId", backendServiceStackProps, stageConfig);
-        lambdaDeployPipelineStack.initializeStack();
 
         // AWS Infrastruktur
         final StackProps infraStackProps = StackProps.builder()

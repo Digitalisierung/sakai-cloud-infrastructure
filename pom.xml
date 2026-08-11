@@ -17,6 +17,7 @@
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <aws-cdk.version>2.233.0</aws-cdk.version>
         <junit.version>5.14.3</junit.version>
         <clean-plugin.version>3.3.2</clean-plugin.version>

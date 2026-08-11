@@ -26,8 +26,9 @@ import java.util.Map;
  * Bauen und Bereitstellen der Backend-Services (Lambda-Funktionen).
  * Er erstellt die notwendigen S3-Buckets für Artefakte und die CodePipeline-Struktur.
  */
-public class LambdaDeployPipelineStack extends Stack {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LambdaDeployPipelineStack.class);
+@Deprecated
+public class LambdaBuildPipelineStack_DELETE extends Stack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LambdaBuildPipelineStack_DELETE.class);
     private final StageConfigurator stageConfig;
     private Bucket lambdaArtifactBucket;
     private Pipeline backendPipeline;
@@ -41,7 +42,7 @@ public class LambdaDeployPipelineStack extends Stack {
 
     // TODO: buildspec.yaml muss im Backend-Repo (sakai-lambda-slave) vorhanden sein.
     // Alternativ: BuildSpec.fromObject() für Inline-Definition verwenden.
-    public LambdaDeployPipelineStack(Construct scope, String id, StackProps stackProps, StageConfigurator stageConfig) {
+    public LambdaBuildPipelineStack_DELETE(Construct scope, String id, StackProps stackProps, StageConfigurator stageConfig) {
         super(scope, id, stackProps);
 
         this.stageConfig = stageConfig;
@@ -114,7 +115,8 @@ public class LambdaDeployPipelineStack extends Stack {
                         .actionName("GitHub_Source")
                         .owner(ORGANISATION)
                         .repo(REPO)
-                        .branch(stageConfig.branch())
+                        //.branch(stageConfig.branch())
+                        .branch("10-be-getarticlehandler")
                         .connectionArn(stageConfig.connectionArn())
                         .output(sourceOutput)
                         .build()))
