@@ -10,10 +10,7 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
-import software.amazon.awscdk.services.apigateway.IResource;
-import software.amazon.awscdk.services.apigateway.LambdaIntegration;
-import software.amazon.awscdk.services.apigateway.LambdaIntegrationOptions;
-import software.amazon.awscdk.services.apigateway.RestApi;
+import software.amazon.awscdk.services.apigateway.*;
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.Role;
@@ -37,12 +34,8 @@ import java.util.Map;
 public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
-    // sakai-lambda-artifacts
     private final String artifactBucketName;
-    // asset-service-1.0-SNAPSHOT.jar
-    //private String artifactObjectKey;
     private Table inventoryTable;
-    // DEV, TEST, PROD, etc.
     private StageConfigurator stageConfig;
 
     public SakaiServiceStack(Construct app, String id, StackProps props, StageConfigurator stageConfig) {
@@ -71,6 +64,8 @@ public class SakaiServiceStack extends Stack {
         // === DynamoDB TABLE ===
         //inventoryTable = createDynamoDbTable(stage);
         inventoryTable = dbTableFactory.createDynamoDbTable(this, "InventoryTableId", stageConfig);
+        dbTableFactory.addGlobalSecondaryIndex(inventoryTable, "GSI_entityType", "entityType", "sortKey");
+        dbTableFactory.addGlobalSecondaryIndex(inventoryTable, "GSI_ItemsInCatalogs", "catalogId", "sortKey");
 
         // === S3 Artifact BUCKET ===
         final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
@@ -83,8 +78,9 @@ public class SakaiServiceStack extends Stack {
         // === LAMBDA FUNCTION for ListArticles Handler ===
 
         // Versuche den Key aus SSM zu lesen...
-        String jarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-key");
+        String jarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/asset-service/artifact-key");
 
+        // List Articles
         FunctionProps lambdaFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
                 .code(Code.fromBucket(artifactBucket, jarKeyParameter))
@@ -101,8 +97,64 @@ public class SakaiServiceStack extends Stack {
 
         final Function listArticlesFunction = new Function(this, "ListArticlesHandlerFunctionId", lambdaFunctionProps);
 
+        // Get Article
+        FunctionProps getArticleFunctionProps = FunctionProps.builder()
+                .architecture(Architecture.X86_64)
+                .code(Code.fromBucket(artifactBucket, jarKeyParameter))
+                .description("Lambda function that returns an article by its ID.")
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .handler("com.sakai.inventory.api.handler.GetArticleHandler::handleRequest")
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .role(lambdaExecRole)
+                .timeout(Duration.seconds(30))
+                .build();
+
+        Function getArticleFunction = new Function(this, "GetArticleHandlerFunctionId", getArticleFunctionProps);
+
+
+        // Catalog-Service
+        String catServiceJarKeyParam = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/catalog-service/artifact-key");
+
+        FunctionProps listCatalogsFunctionProps = FunctionProps.builder()
+                .architecture(Architecture.X86_64)
+                .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
+                .description("Khachi Kamri khan. Lambda Funktion, welche eine Liste von allen Katalogs zuruckgibt.")
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .handler("com.sakai.inventory.api.handler.ListCatalogsHandler::handleRequest")
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .role(lambdaExecRole)
+                .timeout(Duration.seconds(30))
+                .build();
+
+        Function listCatalogsFunction = new Function(this, "ListCatalogsFunctionId", listCatalogsFunctionProps);
+
+        FunctionProps getCatalogFunctionProps = FunctionProps.builder()
+                .architecture(Architecture.X86_64)
+                .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
+                .description("Khachi Kamri khan. Lambda Funktion, welche einen Katalog nach seinem ID findet.")
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .handler("com.sakai.inventory.api.handler.GetCatalogHandler::handleRequest")
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .role(lambdaExecRole)
+                .timeout(Duration.seconds(30))
+                .build();
+
+        Function getCatalogFunction = new Function(this, "GetCatalogFunctionId", getCatalogFunctionProps);
+
 
         // === API GATEWAY ===
+        LOGGER.info("CORS ALL METHODS = {}", Cors.ALL_METHODS);
+        LOGGER.info("CORS ALL ORIGINS = {}", Cors.ALL_ORIGINS);
+        LOGGER.info("CORS DEFAULT HEADERS = {}", Cors.DEFAULT_HEADERS);
         // final RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
         ApiGatewayConfigurator apiGatewayConfigurator = new ApiGatewayConfigurator(
                 "InventoryServiceRestApiGateway",
@@ -113,19 +165,57 @@ public class SakaiServiceStack extends Stack {
 
         // define `/articles` resource
         final IResource listArticlesResource = lambdaRestApi.getRoot().addResource("articles");
-        listArticlesResource.addMethod("GET", new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
-                .proxy(true)
-                .build()));
+        listArticlesResource.addMethod(
+                "GET",
+                new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+//        listArticlesResource.addCorsPreflight(CorsOptions.builder()
+//                .allowOrigins(List.of("*"))
+//                .allowMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"))
+//                .allowHeaders(List.of("Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key", "X-Amz-Security-Token"))
+//                .build()
+//        );
 
         // define `/articles/{id}` resource
+        IResource getArticleResource = listArticlesResource.addResource("{id}");
+        getArticleResource.addMethod(
+                "GET",
+                new LambdaIntegration(getArticleFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+
         // define `/catalogs` resource
+        IResource listCatalogsResource = lambdaRestApi.getRoot().addResource("catalogs");
+        listCatalogsResource.addMethod(
+                "GET",
+                new LambdaIntegration(listCatalogsFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+
+        // define `/catalogs/{id}` resource
+        IResource getCatalogResource = listCatalogsResource.addResource("{id}");
+        getCatalogResource.addMethod(
+                "GET",
+                new LambdaIntegration(getCatalogFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+
         // define `/catalogs/{id}/articles` resource
     }
 
     private Role createLambdaExecRole() {
         final RoleProps lambdaRoleProps = RoleProps.builder()
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
-                .description("IAM-Rolle für die Ausführung der Lambda-Funktion des Inventory-Services.")
+                .description("IAM-Rolle für für CloudWatch Logs.")
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
                 ))
@@ -133,40 +223,4 @@ public class SakaiServiceStack extends Stack {
 
         return new Role(this, "LambdaExecutionRoleId", lambdaRoleProps);
     }
-
-//    private RestApi createApiGateway(String stage, Function listArticlesFunction) {
-//        final StageOptions deployOpt = StageOptions.builder()
-//                .stageName(stage)
-//                .dataTraceEnabled(StageDecisions.enableDataTrace(stage)) // in prod disabled
-//                .loggingLevel(MethodLoggingLevel.ERROR)
-//                .build();
-//
-//        final CorsOptions corsOpt = CorsOptions.builder()
-//                .allowOrigins(Cors.ALL_ORIGINS) // for dev allow all origins. Must be changed in prod.
-//                .allowMethods(Cors.ALL_METHODS)
-//                .allowHeaders(Cors.DEFAULT_HEADERS) // alternativ List.of("Content-Type", "Authorization")
-//                .build();
-//
-//        final RestApiProps props = RestApiProps.builder()
-//                .restApiName("InventoryRestApiGateway")
-//                .description("API for Inventory Management System")
-//                .deployOptions(deployOpt)
-//                .defaultCorsPreflightOptions(corsOpt)
-//                .cloudWatchRole(true)
-//                .build();
-//
-//        final RestApi restApi = new RestApi(this, "RestApiGateway", props);
-//
-//        // define `/articles` resource
-//        final IResource listArticlesResource = restApi.getRoot().addResource("articles");
-//        listArticlesResource.addMethod("GET", new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
-//                .proxy(true)
-//                .build()));
-//
-//        // define `/articles/{id}` resource
-//        // define `/catalogs` resource
-//        // define `/catalogs/{id}/articles` resource
-//
-//        return restApi;
-//    }
 }

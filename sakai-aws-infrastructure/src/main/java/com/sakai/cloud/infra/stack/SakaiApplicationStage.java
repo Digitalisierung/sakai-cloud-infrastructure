@@ -29,8 +29,9 @@ public class SakaiApplicationStage extends Stage {
         LOGGER.info("Env::getAccount() {}", env.getAccount());
         LOGGER.info("Env::getRegion() {}", env.getRegion());
 
+        // Infrastruktur (ApiGateway, Lambda, DynamoDb und etc.)
         final StackProps serviceStackProps = StackProps.builder()
-                .description("Sakai Service Stack.")
+                .description("Sakai Service Stack. Infrastruktur - ApiGateway, Lambda, DynamoDb unt etc.")
                 .env(env)
                 .build();
 

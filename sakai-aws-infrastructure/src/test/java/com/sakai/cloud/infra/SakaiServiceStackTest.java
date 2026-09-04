@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.StackProps;
+import software.amazon.awscdk.assertions.Match;
 import software.amazon.awscdk.assertions.Template;
 
 import java.util.List;
@@ -108,7 +109,7 @@ class SakaiServiceStackTest {
                                         "KeyType", "RANGE"
                                 )
                         ),
-                        "AttributeDefinitions", List.of(
+                "AttributeDefinitions", Match.arrayWith(List.of(
                                 Map.of(
                                         "AttributeName", "partitionKey",
                                         "AttributeType", "S"
@@ -117,7 +118,7 @@ class SakaiServiceStackTest {
                                         "AttributeName", "sortKey",
                                         "AttributeType", "S"
                                 )
-                        ),
+                )),
                         "BillingMode", "PAY_PER_REQUEST"
                 )
         );

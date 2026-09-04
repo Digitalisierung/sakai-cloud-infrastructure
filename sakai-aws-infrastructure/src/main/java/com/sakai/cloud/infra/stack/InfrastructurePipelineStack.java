@@ -30,10 +30,8 @@ public class InfrastructurePipelineStack extends Stack {
     private final StackProps stackProps;
 
     // TODO: zentraler Konfigurationsort (oder Datei) für ORG und REPO überlegen.
-    //private static final String CONNECTION_ARN = "arn:aws:codeconnections:eu-central-1:315735600242:connection/5b463871-e022-42cc-831b-be409b55e94b";
     private static final String ORGANISATION = "Digitalisierung";
     private static final String REPO = "sakai-cloud-infrastructure";
-    //private static final String BRANCH = "develop";
 
     public InfrastructurePipelineStack(Construct app, String id, StackProps stackProps, StageConfigurator stageConfig) {
         super(app, id, stackProps);
@@ -82,10 +80,6 @@ public class InfrastructurePipelineStack extends Stack {
                         .resources(List.of(stageConfig.connectionArn()))
                         .build()
         );
-
-
-        // Lambda SDK or Cognito or ...
-        // codePipeline.addStage(null);
     }
 
     private Bucket createArtifactBucket() {
@@ -125,6 +119,7 @@ public class InfrastructurePipelineStack extends Stack {
                 ))
                 .commands(List.of(
                         "cdk --version",
+                        "ls /usr/lib/jvm",
                         "export JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto.x86_64",
                         "export PATH=$JAVA_HOME/bin:$PATH",
                         "java -version",
@@ -156,11 +151,11 @@ public class InfrastructurePipelineStack extends Stack {
     private SakaiApplicationStage createSakaiAppStage(Environment appEnvironment, StageConfigurator stageConfig) {
 
         final StageProps sakaiAppStageProps = StageProps.builder()
-                .stageName(stageConfig.stageName())
+                .stageName(stageConfig.stageName() + "-ApplicationStage")
                 .env(appEnvironment)
                 .build();
 
-        return new SakaiApplicationStage(this, "SakaiApplicationStage", sakaiAppStageProps, stageConfig);
+        return new SakaiApplicationStage(this, "SakaiApplicationStageId", sakaiAppStageProps, stageConfig);
     }
 
     private CodeBuildOptions getCodeBuildOptions() {
