@@ -10,7 +10,10 @@ import software.amazon.awscdk.Duration;
 import software.amazon.awscdk.Stack;
 import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.Tags;
-import software.amazon.awscdk.services.apigateway.*;
+import software.amazon.awscdk.services.apigateway.IResource;
+import software.amazon.awscdk.services.apigateway.LambdaIntegration;
+import software.amazon.awscdk.services.apigateway.LambdaIntegrationOptions;
+import software.amazon.awscdk.services.apigateway.RestApi;
 import software.amazon.awscdk.services.dynamodb.Table;
 import software.amazon.awscdk.services.iam.ManagedPolicy;
 import software.amazon.awscdk.services.iam.Role;
@@ -71,8 +74,11 @@ public class SakaiServiceStack extends Stack {
         final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
 
         // === IAM ROLE | for Lambda Function ===
-        final Role lambdaExecRole = createLambdaExecRole();
+        final Role lambdaExecRole = createLambdaExecRole("LambdaExecutionRoleId");
         inventoryTable.grantReadData(lambdaExecRole);
+
+        Role updateInventoryTableRole = createLambdaExecRole("UpdateInventoryTableRoleId");
+        inventoryTable.grantReadWriteData(updateInventoryTableRole);
 
 
         // === LAMBDA FUNCTION for ListArticles Handler ===
@@ -84,7 +90,7 @@ public class SakaiServiceStack extends Stack {
         FunctionProps lambdaFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
                 .code(Code.fromBucket(artifactBucket, jarKeyParameter))
-                .description("Lambda-Funktion, die eine Liste aller Artikel aus der DynamoDB zurückgibt.")
+                .description("KHACHI KAMRI KHAN. Lambda-Funktion, die eine Liste aller Artikel aus der DynamoDB zuruckgibt.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
                 ))
@@ -101,7 +107,7 @@ public class SakaiServiceStack extends Stack {
         FunctionProps getArticleFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
                 .code(Code.fromBucket(artifactBucket, jarKeyParameter))
-                .description("Lambda function that returns an article by its ID.")
+                .description("KHACHI KAMRI KHAN. Lambda Funktion, welche ein Artikel nach seinem ID findet.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
                 ))
@@ -121,7 +127,7 @@ public class SakaiServiceStack extends Stack {
         FunctionProps listCatalogsFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
                 .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
-                .description("Khachi Kamri khan. Lambda Funktion, welche eine Liste von allen Katalogs zuruckgibt.")
+                .description("KHACHI KAMRI kHAN. Lambda Funktion, welche eine Liste von allen Katalogs zuruckgibt.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
                 ))
@@ -137,7 +143,7 @@ public class SakaiServiceStack extends Stack {
         FunctionProps getCatalogFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
                 .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
-                .description("Khachi Kamri khan. Lambda Funktion, welche einen Katalog nach seinem ID findet.")
+                .description("KHACHI KAMRI kHAN. Lambda Funktion, welche einen Katalog nach seinem ID findet.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
                 ))
@@ -150,11 +156,24 @@ public class SakaiServiceStack extends Stack {
 
         Function getCatalogFunction = new Function(this, "GetCatalogFunctionId", getCatalogFunctionProps);
 
+        FunctionProps updateCatalogFunctionProps = FunctionProps.builder()
+                .description("KHACHI KAMRI kHAN. Lambda Funktion, welche die Katalog-Eigenschaften (Name, Beschreibung etc.) eines Katalogs updatet.")
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .architecture(Architecture.X86_64)
+                .handler("com.sakai.inventory.api.handler.UpdateCatalogHandler::handleRequest")
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
+                .role(updateInventoryTableRole)
+                .timeout(Duration.seconds(30))
+                .build();
+
+        Function updateCatalogFunction = new Function(this, "UpdateCatelogFunctionId", updateCatalogFunctionProps);
+
 
         // === API GATEWAY ===
-        LOGGER.info("CORS ALL METHODS = {}", Cors.ALL_METHODS);
-        LOGGER.info("CORS ALL ORIGINS = {}", Cors.ALL_ORIGINS);
-        LOGGER.info("CORS DEFAULT HEADERS = {}", Cors.DEFAULT_HEADERS);
         // final RestApi lambdaRestApi = createApiGateway(stage, listArticlesHandler);
         ApiGatewayConfigurator apiGatewayConfigurator = new ApiGatewayConfigurator(
                 "InventoryServiceRestApiGateway",
@@ -172,12 +191,6 @@ public class SakaiServiceStack extends Stack {
                         .build()
                 )
         );
-//        listArticlesResource.addCorsPreflight(CorsOptions.builder()
-//                .allowOrigins(List.of("*"))
-//                .allowMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"))
-//                .allowHeaders(List.of("Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key", "X-Amz-Security-Token"))
-//                .build()
-//        );
 
         // define `/articles/{id}` resource
         IResource getArticleResource = listArticlesResource.addResource("{id}");
@@ -209,18 +222,27 @@ public class SakaiServiceStack extends Stack {
                 )
         );
 
+        // define 'PUT /catalogs/{id}'
+        getCatalogResource.addMethod(
+                "PUT",
+                new LambdaIntegration(updateCatalogFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+
         // define `/catalogs/{id}/articles` resource
     }
 
-    private Role createLambdaExecRole() {
+    private Role createLambdaExecRole(String id) {
         final RoleProps lambdaRoleProps = RoleProps.builder()
                 .assumedBy(new ServicePrincipal("lambda.amazonaws.com"))
-                .description("IAM-Rolle für für CloudWatch Logs.")
+                .description("KHACHI KAMRI KHAN. IAM-Rolle für Lambda-Funktionen zum Schreiben in CloudWatch Logs.")
                 .managedPolicies(List.of(
                         ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaBasicExecutionRole")
                 ))
                 .build();
 
-        return new Role(this, "LambdaExecutionRoleId", lambdaRoleProps);
+        return new Role(this, id, lambdaRoleProps);
     }
 }

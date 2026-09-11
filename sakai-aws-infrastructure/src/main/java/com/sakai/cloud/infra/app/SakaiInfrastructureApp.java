@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 import software.amazon.awscdk.App;
 import software.amazon.awscdk.Environment;
 import software.amazon.awscdk.StackProps;
-import software.amazon.awscdk.services.apigateway.Cors;
 
 /**
  * Der Haupteinstiegspunkt für die Sakai Cloud Infrastructure CDK App.
@@ -15,9 +14,6 @@ import software.amazon.awscdk.services.apigateway.Cors;
  * und die Lambda-Deployment-Pipelines basierend auf dem aktuellen Stage (z. B. Dev, Test, Prod).
  */
 public class SakaiInfrastructureApp {
-    private static String errorMessage = """
-            Unable to fetch parameters [/sakai/local-env/lambda/artifact-key] from parameter store for this account. (Service: AmazonCloudFormation; Status Code: 400; Error Code: ValidationError; Request ID: 83d1af5c-d944-4e45-8c1b-f3ca1bc57129; Proxy: null)
-            """;
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiInfrastructureApp.class);
 
     /**
@@ -51,9 +47,6 @@ public class SakaiInfrastructureApp {
             stageConfig = StageConfigurator.fromLocal(branch);
         }
 
-        LOGGER.info("Cors all methods: {}", Cors.ALL_METHODS);
-        LOGGER.info("Cors all origins: {}", Cors.ALL_ORIGINS);
-        LOGGER.info("Cors all headers: {}", Cors.DEFAULT_HEADERS);
         final Environment env = Environment.builder()
                 .account(defaultAccount)
                 .region(defaultRegion)
