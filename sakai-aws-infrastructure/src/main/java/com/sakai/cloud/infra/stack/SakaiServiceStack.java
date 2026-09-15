@@ -37,7 +37,7 @@ import java.util.Map;
 public class SakaiServiceStack extends Stack {
     private static final Logger LOGGER = LoggerFactory.getLogger(SakaiServiceStack.class);
 
-    private final String artifactBucketName;
+    private final String artifactBucketNameParam;
     private Table inventoryTable;
     private StageConfigurator stageConfig;
 
@@ -45,7 +45,7 @@ public class SakaiServiceStack extends Stack {
         super(app, id, props);
 
         this.stageConfig = stageConfig;
-        this.artifactBucketName = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-bucket-name");
+        this.artifactBucketNameParam = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/artifact-bucket-name");
 
         Tags.of(this).add("Project", "Sakai");
         Tags.of(this).add("Stage", stageConfig.stageName());
@@ -71,25 +71,25 @@ public class SakaiServiceStack extends Stack {
         dbTableFactory.addGlobalSecondaryIndex(inventoryTable, "GSI_ItemsInCatalogs", "catalogId", "sortKey");
 
         // === S3 Artifact BUCKET ===
-        final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketName);
+        final IBucket artifactBucket = Bucket.fromBucketName(this, "ArtifactBucketId", artifactBucketNameParam);
 
         // === IAM ROLE | for Lambda Function ===
         final Role lambdaExecRole = createLambdaExecRole("LambdaExecutionRoleId");
         inventoryTable.grantReadData(lambdaExecRole);
 
-        Role updateInventoryTableRole = createLambdaExecRole("UpdateInventoryTableRoleId");
-        inventoryTable.grantReadWriteData(updateInventoryTableRole);
+        Role inventoryTableWriteRole = createLambdaExecRole("UpdateInventoryTableRoleId");
+        inventoryTable.grantReadWriteData(inventoryTableWriteRole);
 
 
         // === LAMBDA FUNCTION for ListArticles Handler ===
 
         // Versuche den Key aus SSM zu lesen...
-        String jarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/asset-service/artifact-key");
+        String assetServiceJarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/asset-service/artifact-key");
 
         // List Articles
-        FunctionProps lambdaFunctionProps = FunctionProps.builder()
+        FunctionProps listArticlesFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
-                .code(Code.fromBucket(artifactBucket, jarKeyParameter))
+                .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
                 .description("KHACHI KAMRI KHAN. Lambda-Funktion, die eine Liste aller Artikel aus der DynamoDB zuruckgibt.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
@@ -101,12 +101,12 @@ public class SakaiServiceStack extends Stack {
                 .timeout(Duration.seconds(30))
                 .build();
 
-        final Function listArticlesFunction = new Function(this, "ListArticlesHandlerFunctionId", lambdaFunctionProps);
+        final Function listArticlesFunction = new Function(this, "ListArticlesHandlerFunctionId", listArticlesFunctionProps);
 
         // Get Article
         FunctionProps getArticleFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
-                .code(Code.fromBucket(artifactBucket, jarKeyParameter))
+                .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
                 .description("KHACHI KAMRI KHAN. Lambda Funktion, welche ein Artikel nach seinem ID findet.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
@@ -120,13 +120,30 @@ public class SakaiServiceStack extends Stack {
 
         Function getArticleFunction = new Function(this, "GetArticleHandlerFunctionId", getArticleFunctionProps);
 
+        // List Catalog's Articles
+        FunctionProps listCatArtFunctionProps = FunctionProps.builder()
+                .description("KHACI KAMRI KHAN. Findet alle Artikels eines Katalogs.")
+                .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
+                .handler("com.sakai.inventory.api.handler.ListCatalogArticlesHandler::handleRequest")
+                .architecture(Architecture.X86_64)
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .role(inventoryTableWriteRole)
+                .timeout(Duration.seconds(30))
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .build();
+
+        Function listCatalogArticlesFunction = new Function(this, "ListCatalogArticlesFunctionId", listCatArtFunctionProps);
+
 
         // Catalog-Service
-        String catServiceJarKeyParam = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/catalog-service/artifact-key");
+        String catalogServiceJarKeyParam = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/catalog-service/artifact-key");
 
         FunctionProps listCatalogsFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
-                .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
+                .code(Code.fromBucket(artifactBucket, catalogServiceJarKeyParam))
                 .description("KHACHI KAMRI kHAN. Lambda Funktion, welche eine Liste von allen Katalogs zuruckgibt.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
@@ -142,7 +159,7 @@ public class SakaiServiceStack extends Stack {
 
         FunctionProps getCatalogFunctionProps = FunctionProps.builder()
                 .architecture(Architecture.X86_64)
-                .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
+                .code(Code.fromBucket(artifactBucket, catalogServiceJarKeyParam))
                 .description("KHACHI KAMRI kHAN. Lambda Funktion, welche einen Katalog nach seinem ID findet.")
                 .environment(Map.of(
                         "TABLE_NAME", inventoryTable.getTableName()
@@ -165,12 +182,29 @@ public class SakaiServiceStack extends Stack {
                 .handler("com.sakai.inventory.api.handler.UpdateCatalogHandler::handleRequest")
                 .memorySize(1024)
                 .runtime(Runtime.JAVA_21)
-                .code(Code.fromBucket(artifactBucket, catServiceJarKeyParam))
-                .role(updateInventoryTableRole)
+                .code(Code.fromBucket(artifactBucket, catalogServiceJarKeyParam))
+                .role(inventoryTableWriteRole)
                 .timeout(Duration.seconds(30))
                 .build();
 
-        Function updateCatalogFunction = new Function(this, "UpdateCatelogFunctionId", updateCatalogFunctionProps);
+        Function updateCatalogFunction = new Function(this, "UpdateCatalogFunctionId", updateCatalogFunctionProps);
+
+
+        FunctionProps createCatalogFunctionProps = FunctionProps.builder()
+                .description("KHICHI KAMRI KHAN. Lambda Funktion, um einen neuen Katalog zu erstellen.")
+                .timeout(Duration.seconds(30))
+                .role(inventoryTableWriteRole)
+                .runtime(Runtime.JAVA_21)
+                .memorySize(1024)
+                .handler("com.sakai.inventory.api.handler.CreateCatalogHandler::handleRequest")
+                .architecture(Architecture.X86_64)
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .code(Code.fromBucket(artifactBucket, catalogServiceJarKeyParam))
+                .build();
+
+        Function createCatalogFunction = new Function(this, "CreateCatalogFunctionId", createCatalogFunctionProps);
 
 
         // === API GATEWAY ===
@@ -180,11 +214,11 @@ public class SakaiServiceStack extends Stack {
                 "API für/von Inventory Management System.",
                 stageConfig
         );
-        final RestApi lambdaRestApi = apiGatewayFactory.createApiGateway(this, "ApiGatewayId", apiGatewayConfigurator);
+        final RestApi inventoryRestApi = apiGatewayFactory.createApiGateway(this, "ApiGatewayId", apiGatewayConfigurator);
 
         // define `/articles` resource
-        final IResource listArticlesResource = lambdaRestApi.getRoot().addResource("articles");
-        listArticlesResource.addMethod(
+        final IResource articlesResource = inventoryRestApi.getRoot().addResource("articles");
+        articlesResource.addMethod(
                 "GET",
                 new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
@@ -193,8 +227,8 @@ public class SakaiServiceStack extends Stack {
         );
 
         // define `/articles/{id}` resource
-        IResource getArticleResource = listArticlesResource.addResource("{id}");
-        getArticleResource.addMethod(
+        IResource articleByIdResource = articlesResource.addResource("{id}");
+        articleByIdResource.addMethod(
                 "GET",
                 new LambdaIntegration(getArticleFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
@@ -203,8 +237,8 @@ public class SakaiServiceStack extends Stack {
         );
 
         // define `/catalogs` resource
-        IResource listCatalogsResource = lambdaRestApi.getRoot().addResource("catalogs");
-        listCatalogsResource.addMethod(
+        IResource catalogsResource = inventoryRestApi.getRoot().addResource("catalogs");
+        catalogsResource.addMethod(
                 "GET",
                 new LambdaIntegration(listCatalogsFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
@@ -212,9 +246,17 @@ public class SakaiServiceStack extends Stack {
                 )
         );
 
+        // define 'POST /catalogs' method
+        catalogsResource.addMethod(
+                "POST",
+                new LambdaIntegration(createCatalogFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build())
+        );
+
         // define `/catalogs/{id}` resource
-        IResource getCatalogResource = listCatalogsResource.addResource("{id}");
-        getCatalogResource.addMethod(
+        IResource catalogByIdResource = catalogsResource.addResource("{id}");
+        catalogByIdResource.addMethod(
                 "GET",
                 new LambdaIntegration(getCatalogFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
@@ -223,7 +265,7 @@ public class SakaiServiceStack extends Stack {
         );
 
         // define 'PUT /catalogs/{id}'
-        getCatalogResource.addMethod(
+        catalogByIdResource.addMethod(
                 "PUT",
                 new LambdaIntegration(updateCatalogFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
@@ -231,7 +273,15 @@ public class SakaiServiceStack extends Stack {
                 )
         );
 
-        // define `/catalogs/{id}/articles` resource
+        // define `GET /catalogs/{catalogId}/articles` resource
+        IResource catalogArticlesResource = catalogByIdResource.addResource("articles");
+        catalogArticlesResource.addMethod(
+                "GET",
+                new LambdaIntegration(listCatalogArticlesFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
     }
 
     private Role createLambdaExecRole(String id) {
