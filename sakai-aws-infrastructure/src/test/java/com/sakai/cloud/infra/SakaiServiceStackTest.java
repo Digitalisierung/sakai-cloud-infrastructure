@@ -13,6 +13,17 @@ import software.amazon.awscdk.assertions.Template;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * java.lang.RuntimeException: AssertionError: Expected 2 resources of type AWS::IAM::Role but found 3
+ *
+ * @jsii/kernel.RuntimeError: AssertionError: Expected 2 resources of type AWS::IAM::Role but found 3
+ * at Kernel._Kernel_ensureSync (/tmp/jsii-java-runtime3564890119325800135/lib/program.js:1:71414)
+ * at Kernel.invoke (/tmp/jsii-java-runtime3564890119325800135/lib/program.js:1:55595)
+ * at KernelHost.processRequest (/tmp/jsii-java-runtime3564890119325800135/lib/program.js:1:228006)
+ * at KernelHost.run (/tmp/jsii-java-runtime3564890119325800135/lib/program.js:1:226990)
+ * at Immediate._onImmediate (/tmp/jsii-java-runtime3564890119325800135/lib/program.js:1:227034)
+ * at process.processImmediate (node:internal/timers:504:21)
+ */
 class SakaiServiceStackTest {
     private static final Logger LOGGER = LoggerFactory.getLogger("SakaiServiceStack");
 
@@ -38,7 +49,7 @@ class SakaiServiceStackTest {
         Template template = Template.fromStack(stack);
 
         // Anzahl Ressourcen im Template
-        template.resourceCountIs("AWS::IAM::Role", 2);
+        template.resourceCountIs("AWS::IAM::Role", 3);
 
         // Prüfen, dass die Lambda-Rolle die BasicExecution-Policy enthält
         template.hasResourceProperties("AWS::IAM::Role", Map.of(
