@@ -137,6 +137,23 @@ public class SakaiServiceStack extends Stack {
 
         Function listCatalogArticlesFunction = new Function(this, "ListCatalogArticlesFunctionId", listCatArtFunctionProps);
 
+        // Batch-Write Articles
+        FunctionProps batchWriteArticlesProps = FunctionProps.builder()
+                .description("KHACHI KAMRI KHAN. Lambda Funktion, welche mehrere Artikel in Batch-Modus in die Datenbank schreibt.")
+                .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
+                .handler("com.sakai.inventory.api.handler.CreateNewArticleHandler::handleRequest")
+                .architecture(Architecture.X86_64)
+                .memorySize(1024)
+                .runtime(Runtime.JAVA_21)
+                .role(inventoryTableWriteRole)
+                .timeout(Duration.seconds(30))
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .build();
+
+        Function batchWriteArticlesFunction = new Function(this, "BatchWriteArticlesFunctionId", batchWriteArticlesProps);
+
 
         // Catalog-Service
         String catalogServiceJarKeyParam = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/catalog-service/artifact-key");
@@ -221,6 +238,13 @@ public class SakaiServiceStack extends Stack {
         articlesResource.addMethod(
                 "GET",
                 new LambdaIntegration(listArticlesFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+        articlesResource.addMethod(
+                "POST",
+                new LambdaIntegration(batchWriteArticlesFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
                         .build()
                 )
