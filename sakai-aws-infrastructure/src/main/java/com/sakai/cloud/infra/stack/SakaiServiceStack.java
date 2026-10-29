@@ -141,7 +141,7 @@ public class SakaiServiceStack extends Stack {
         FunctionProps batchWriteArticlesProps = FunctionProps.builder()
                 .description("KHACHI KAMRI KHAN. Lambda Funktion, welche mehrere Artikel in Batch-Modus in die Datenbank schreibt.")
                 .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
-                .handler("com.sakai.inventory.api.handler.CreateNewArticleHandler::handleRequest")
+                .handler("com.sakai.inventory.api.handler.BatchWriteArticlesHandler::handleRequest")
                 .architecture(Architecture.X86_64)
                 .memorySize(1024)
                 .runtime(Runtime.JAVA_21)
