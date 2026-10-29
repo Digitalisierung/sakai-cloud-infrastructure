@@ -81,7 +81,7 @@ public class SakaiServiceStack extends Stack {
         inventoryTable.grantReadWriteData(inventoryTableWriteRole);
 
 
-        // === LAMBDA FUNCTION for ListArticles Handler ===
+        // === LAMBDA FUNCTIONS for ListArticles Handler ===
 
         // Versuche den Key aus SSM zu lesen...
         String assetServiceJarKeyParameter = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/asset-service/artifact-key");
@@ -153,6 +153,23 @@ public class SakaiServiceStack extends Stack {
                 .build();
 
         Function batchWriteArticlesFunction = new Function(this, "BatchWriteArticlesFunctionId", batchWriteArticlesProps);
+
+        // Update Article
+        FunctionProps updateArticleFuncProp = FunctionProps.builder()
+                .description("KHACHI KAMRI kHAN. Lambda Funktion, welche die Eigenschaften (Name, Beschreibung etc.) eines Artikels aktualisiert bzw. ändert.")
+                .role(inventoryTableWriteRole)
+                .runtime(Runtime.JAVA_21)
+                .memorySize(1024)
+                .timeout(Duration.seconds(30))
+                .architecture(Architecture.X86_64)
+                .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
+                .handler("com.sakai.inventory.api.handler.UpdateArticleHandler::handleRequest")
+                .environment(Map.of(
+                        "TABLE_NAME", inventoryTable.getTableName()
+                ))
+                .build();
+
+        Function updateArticleFunction = new Function(this, "UpdateArticleFunctionId", updateArticleFuncProp);
 
 
         // Catalog-Service
@@ -255,6 +272,15 @@ public class SakaiServiceStack extends Stack {
         articleByIdResource.addMethod(
                 "GET",
                 new LambdaIntegration(getArticleFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+
+        // define 'PUT /articles/{id}' method
+        articleByIdResource.addMethod(
+                "PUT",
+                new LambdaIntegration(updateArticleFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
                         .build()
                 )
