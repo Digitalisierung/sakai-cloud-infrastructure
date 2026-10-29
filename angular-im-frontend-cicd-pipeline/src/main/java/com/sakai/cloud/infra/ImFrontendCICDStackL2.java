@@ -1,8 +1,10 @@
 package com.sakai.cloud.infra;
 
-import software.amazon.awscdk.*;
+import software.amazon.awscdk.Duration;
+import software.amazon.awscdk.RemovalPolicy;
+import software.amazon.awscdk.Stack;
+import software.amazon.awscdk.StackProps;
 import software.amazon.awscdk.services.codebuild.*;
-import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.codepipeline.Artifact;
 import software.amazon.awscdk.services.codepipeline.Pipeline;
 import software.amazon.awscdk.services.codepipeline.PipelineProps;
@@ -12,6 +14,7 @@ import software.amazon.awscdk.services.codepipeline.actions.CodeBuildActionProps
 import software.amazon.awscdk.services.codepipeline.actions.CodeBuildActionType;
 import software.amazon.awscdk.services.codepipeline.actions.CodeStarConnectionsSourceAction;
 import software.amazon.awscdk.services.iam.*;
+import software.amazon.awscdk.services.logs.LogGroup;
 import software.amazon.awscdk.services.logs.RetentionDays;
 import software.amazon.awscdk.services.s3.*;
 import software.constructs.Construct;
@@ -19,9 +22,9 @@ import software.constructs.Construct;
 import java.util.List;
 import java.util.Map;
 
-import static software.amazon.awscdk.services.codebuild.LinuxBuildImage.AMAZON_LINUX_2_5;
-import static software.amazon.awscdk.services.codebuild.ComputeType.SMALL;
 import static software.amazon.awscdk.services.codebuild.BuildEnvironmentVariableType.PLAINTEXT;
+import static software.amazon.awscdk.services.codebuild.ComputeType.SMALL;
+import static software.amazon.awscdk.services.codebuild.LinuxBuildImage.AMAZON_LINUX_2_5;
 
 public class ImFrontendCICDStackL2 extends Stack {
     private final String connectionId;
@@ -39,7 +42,7 @@ public class ImFrontendCICDStackL2 extends Stack {
 
         repoOwner = "Digitalisierung";
         repoName = "im-frontend";
-        branchName = "develop";
+        branchName = "be-4-backend-anbindung-furr-products";
 
         Bucket artifactBucket = createArtifactBucket();
         Bucket imFrontendBucket = createImFrontendBucket();
