@@ -171,6 +171,22 @@ public class SakaiServiceStack extends Stack {
 
         Function updateArticleFunction = new Function(this, "UpdateArticleFunctionId", updateArticleFuncProp);
 
+        // Delete Article
+        LOGGER.info("Creating lambda function: DELETE /articles/{id} endpoint...");
+        FunctionProps deleteArticleFuncProps = FunctionProps.builder()
+                .description("KHACHI KAMRI KHAN. Lambda Funktion. Löschen eines Artikels.")
+                .handler("com.sakai.inventory.api.handler.DeleteArticleHandler::handleRequest")
+                .code(Code.fromBucket(artifactBucket, assetServiceJarKeyParameter))
+                .architecture(Architecture.X86_64)
+                .runtime(Runtime.JAVA_21)
+                .memorySize(1024)
+                .timeout(Duration.seconds(30))
+                .role(inventoryTableWriteRole)
+                .environment(Map.of("TABLE_NAME", inventoryTable.getTableName()))
+                .build();
+
+        Function deleteArticleFunction = new Function(this, "DeleteArticleFunctionId", deleteArticleFuncProps);
+
 
         // Catalog-Service
         String catalogServiceJarKeyParam = StringParameter.valueForStringParameter(this, "/sakai/" + stageConfig.stageName() + "/lambda/catalog-service/artifact-key");
@@ -281,6 +297,15 @@ public class SakaiServiceStack extends Stack {
         articleByIdResource.addMethod(
                 "PUT",
                 new LambdaIntegration(updateArticleFunction, LambdaIntegrationOptions.builder()
+                        .proxy(true)
+                        .build()
+                )
+        );
+
+        // define `DELETE /articles/{id}` method
+        articleByIdResource.addMethod(
+                "DELETE",
+                new LambdaIntegration(deleteArticleFunction, LambdaIntegrationOptions.builder()
                         .proxy(true)
                         .build()
                 )
