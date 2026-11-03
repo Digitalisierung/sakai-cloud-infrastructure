@@ -9,8 +9,16 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+    <developers>
+        <developer>
+            <name>Juri Rempel</name>
+        </developer>
+        <developer>
+            <name>Dietmar Rempel</name>
+        </developer>
+    </developers>
+
     <modules>
-        <module>angular-im-frontend-cicd-pipeline</module>
         <module>sakai-aws-infrastructure</module>
     </modules>
 
